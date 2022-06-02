@@ -808,10 +808,10 @@ surface display::screenshot(bool map_screenshot)
 	auto clipper = video().set_clip(area);
 
 	map_screenshot_ = true;
-	invalidateAll_ = true;
+	dirty_ = true;
 
 	DBG_DP << "draw() call for map screenshot\n";
-	draw(true, true);
+	draw();
 
 	map_screenshot_ = false;
 
@@ -1651,7 +1651,7 @@ void display::draw_wrap(bool update, bool force)
 		time_between_draws = 1000 / screen_.current_refresh_rate();
 	}
 
-	if(redrawMinimap_) {
+	if(redrawMinimap_ && !map_screenshot_) {
 		redrawMinimap_ = false;
 		draw_minimap();
 	}
@@ -2449,7 +2449,9 @@ void display::draw(bool update, bool force)
 		}
 		drawing_buffer_commit();
 		post_commit();
-		draw_sidebar();
+		if (!map_screenshot_) {
+			draw_sidebar();
+		}
 	}
 	draw_wrap(update, force);
 	post_draw();
