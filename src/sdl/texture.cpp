@@ -47,8 +47,10 @@ texture::texture()
 texture::texture(SDL_Texture* txt)
 	: texture_(txt, &cleanup_texture)
 {
-	SDL_QueryTexture(txt, nullptr, nullptr, &w_, &h_);
-	finalize();
+	if (txt) {
+		SDL_QueryTexture(txt, nullptr, nullptr, &w_, &h_);
+		finalize();
+	}
 }
 
 texture::texture(const surface& surf)
@@ -83,7 +85,9 @@ texture::texture(int width, int height, SDL_TextureAccess access)
 
 void texture::finalize()
 {
-	set_texture_blend_mode(*this, SDL_BLENDMODE_BLEND);
+	if (texture_) {
+		set_texture_blend_mode(*this, SDL_BLENDMODE_BLEND);
+	}
 }
 
 void texture::set_alpha_mod(uint8_t alpha)
@@ -114,6 +118,7 @@ void texture::reset(int width, int height, SDL_TextureAccess access)
 	texture_.reset(SDL_CreateTexture(renderer, default_texture_format, access, width, height), &cleanup_texture);
 	if(!texture_) {
 		ERR_SDL << "When creating texture: " << SDL_GetError() << std::endl;
+		return;
 	}
 
 	w_ = width; h_ = height;
@@ -124,7 +129,12 @@ void texture::reset(int width, int height, SDL_TextureAccess access)
 void texture::assign(SDL_Texture* t)
 {
 	texture_.reset(t, &cleanup_texture);
-	SDL_QueryTexture(t, nullptr, nullptr, &w_, &h_);
+	if (t) {
+		SDL_QueryTexture(t, nullptr, nullptr, &w_, &h_);
+	} else {
+		w_ = 0;
+		h_ = 0;
+	}
 }
 
 texture& texture::operator=(texture&& t)
@@ -141,5 +151,7 @@ texture::info::info(SDL_Texture* t)
 	, w(0)
 	, h(0)
 {
-	SDL_QueryTexture(t, &format, &access, &w, &h);
+	if (t) {
+		SDL_QueryTexture(t, &format, &access, &w, &h);
+	}
 }
