@@ -34,12 +34,28 @@
 #include "preferences/general.hpp"
 
 #include <boost/algorithm/string/replace.hpp>
+#include <boost/functional/hash_fwd.hpp>
 
 #include <cassert>
 #include <cstring>
 #include <stdexcept>
 
-namespace font {
+namespace font
+{
+namespace
+{
+/**
+ * The text texture cache.
+ *
+ * Each time a specific bit of text is rendered, a corresponding texture is created and
+ * added to the cache. We don't store the surface since there isn't really any use for
+ * it. If we need texture size that can be easily queried.
+ *
+ * @todo Figure out how this can be optimized with a texture atlas. It should be possible
+ * to store smaller bits of text in the atlas and construct new textures from them.
+ */
+std::map<std::size_t, texture> rendered_text_cache;
+}
 
 pango_text::pango_text()
 	: context_(pango_font_map_create_context(pango_cairo_font_map_get_default()), g_object_unref)
@@ -65,6 +81,7 @@ pango_text::pango_text()
 	, length_(0)
 	, surface_dirty_(true)
 	, rendered_viewport_()
+	, hash_(0)
 	, surface_buffer_()
 {
 	// With 72 dpi the sizes are the same as with SDL_TTF so hardcoded.
@@ -91,6 +108,14 @@ pango_text::pango_text()
 	cairo_font_options_destroy(fo);
 }
 
+texture& pango_text::render_and_get_texture()
+{
+	recalculate();
+	SDL_Rect viewport{0, 0, rect_.x + rect_.width, rect_.y + rect_.height};
+	rerender(viewport);
+	return rendered_text_cache[hash_];
+}
+
 surface& pango_text::render(const SDL_Rect& viewport)
 {
 	rerender(viewport);
@@ -100,7 +125,7 @@ surface& pango_text::render(const SDL_Rect& viewport)
 surface& pango_text::render()
 {
 	recalculate();
-	auto viewport = SDL_Rect{0, 0, rect_.x + rect_.width, rect_.y + rect_.height};
+	SDL_Rect viewport{0, 0, rect_.x + rect_.width, rect_.y + rect_.height};
 	rerender(viewport);
 	return surface_;
 }
@@ -149,8 +174,7 @@ unsigned pango_text::insert_text(const unsigned offset, const std::string& text)
 	return len;
 }
 
-point pango_text::get_cursor_position(
-		const unsigned column, const unsigned line) const
+point pango_text::get_cursor_position(const unsigned column, const unsigned line) const
 {
 	this->recalculate();
 
@@ -731,6 +755,16 @@ void pango_text::rerender(const SDL_Rect& viewport)
 		surface_dirty_ = false;
 		rendered_viewport_ = viewport;
 
+		// Calculate hash for the current settings
+		hash_ = std::hash<pango_text>{}(*this);
+
+		// If we already have the appropriate texture in-cache, use it.
+		auto iter = rendered_text_cache.find(hash_);
+		if(iter != rendered_text_cache.end()) {
+			return;
+		}
+
+		// Else, render the updated text...
 		cairo_format_t format = CAIRO_FORMAT_ARGB32;
 		const int stride = cairo_format_stride_for_width(format, viewport.w);
 
@@ -770,10 +804,13 @@ void pango_text::rerender(const SDL_Rect& viewport)
 
 		surface_ = SDL_CreateRGBSurfaceWithFormatFrom(
 			&surface_buffer_[0], viewport.w, viewport.h, 32, stride, SDL_PIXELFORMAT_ARGB8888);
+
+		rendered_text_cache.try_emplace(hash_, surface_);
 	}
 }
 
-bool pango_text::set_markup(std::string_view text, PangoLayout& layout) {
+bool pango_text::set_markup(std::string_view text, PangoLayout& layout)
+{
 	char* raw_text;
 	std::string semi_escaped;
 	bool valid = validate_markup(text, &raw_text, semi_escaped);
@@ -928,3 +965,37 @@ int get_max_height(unsigned size, font::family_class fclass, pango_text::FONT_ST
 }
 
 } // namespace font
+
+namespace std
+{
+std::size_t hash<font::pango_text>::operator()(const font::pango_text& t) const
+{
+	using boost::hash_value;
+	using boost::hash_combine;
+
+	//
+	// Text hashing uses 32-bit FNV-1a.
+	// http://isthe.com/chongo/tech/comp/fnv/#FNV-1a
+	//
+
+	std::size_t hash = 2166136261;
+	for(const char& c : t.text_) {
+		hash |= c;
+		hash *= 16777619;
+	}
+
+	hash_combine(hash, t.font_class_);
+	hash_combine(hash, t.font_size_);
+	hash_combine(hash, t.font_style_);
+	hash_combine(hash, t.foreground_color_.to_rgba_bytes());
+	hash_combine(hash, t.get_width());
+	hash_combine(hash, t.get_height());
+	hash_combine(hash, t.maximum_width_);
+	hash_combine(hash, t.maximum_height_);
+	hash_combine(hash, t.alignment_);
+	hash_combine(hash, t.ellipse_mode_);
+
+	return hash;
+}
+
+} // namespace std
