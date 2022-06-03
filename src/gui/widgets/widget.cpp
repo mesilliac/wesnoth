@@ -351,8 +351,7 @@ void widget::set_linked_group(const std::string& linked_group)
 
 /***** ***** ***** ***** Drawing functions. ***** ***** ***** *****/
 
-SDL_Rect widget::calculate_blitting_rectangle(const int x_offset,
-											   const int y_offset)
+SDL_Rect widget::calculate_blitting_rectangle(const int x_offset, const int y_offset) const
 {
 	SDL_Rect result = get_rectangle();
 	result.x += x_offset;
@@ -360,8 +359,7 @@ SDL_Rect widget::calculate_blitting_rectangle(const int x_offset,
 	return result;
 }
 
-SDL_Rect widget::calculate_clipping_rectangle(const int x_offset,
-											   const int y_offset)
+SDL_Rect widget::calculate_clipping_rectangle(const int x_offset, const int y_offset) const
 {
 	SDL_Rect result = clipping_rectangle_;
 	result.x += x_offset;
@@ -369,48 +367,75 @@ SDL_Rect widget::calculate_clipping_rectangle(const int x_offset,
 	return result;
 }
 
+namespace
+{
+/**
+ * Small RAII helper class to set the renderer viewport and clip rect for the drawing routines.
+ */
+class viewport_and_clip_rect_setter
+{
+public:
+	explicit viewport_and_clip_rect_setter(const widget& widget, int x_offset, int y_offset)
+		: renderer_(CVideo::get_singleton().get_renderer())
+	{
+		// Set viewport.
+		const SDL_Rect dst_rect = widget.calculate_blitting_rectangle(x_offset, y_offset);
+		SDL_RenderSetViewport(renderer_, &dst_rect);
+
+		// Set clip rect, if appropriate.
+		if(widget.get_drawing_action() != widget::redraw_action::partly) {
+			return;
+		}
+
+		SDL_Rect clip_rect = widget.calculate_clipping_rectangle(x_offset, y_offset);
+
+		// Adjust clip rect origin to match the viewport origin. Currently, the both rects are mapped to
+		// absolute screen coordinates. However, setting the viewport essentially moves the screen origin,
+		// meaning if both the viewport rect and clip rect have x = 100, then clipping will actually
+		// happen at x = 200.
+		clip_rect.x -= dst_rect.x;
+		clip_rect.y -= dst_rect.y;
+
+		SDL_RenderSetClipRect(renderer_, &clip_rect);
+	}
+
+	~viewport_and_clip_rect_setter()
+	{
+		SDL_RenderSetClipRect(renderer_, nullptr);
+		SDL_RenderSetViewport(renderer_, nullptr);
+	}
+
+private:
+	SDL_Renderer* renderer_;
+};
+} // namespace
+
 void widget::draw_background(int x_offset, int y_offset)
 {
 	assert(visible_ == visibility::visible);
 
-	if(redraw_action_ == redraw_action::partly) {
-		const SDL_Rect clipping_rectangle
-				= calculate_clipping_rectangle(x_offset, y_offset);
-		auto clipper = draw::set_clip(clipping_rectangle);
-		draw_debug_border(x_offset, y_offset);
-		impl_draw_background(x_offset, y_offset);
-	} else {
-		draw_debug_border(x_offset, y_offset);
-		impl_draw_background(x_offset, y_offset);
-	}
+	const viewport_and_clip_rect_setter setter{*this, x_offset, y_offset};
+
+	draw_debug_border(x_offset, y_offset);
+	impl_draw_background(x_offset, y_offset);
 }
 
 void widget::draw_children(int x_offset, int y_offset)
 {
 	assert(visible_ == visibility::visible);
 
-	if(redraw_action_ == redraw_action::partly) {
-		const SDL_Rect clipping_rectangle
-				= calculate_clipping_rectangle(x_offset, y_offset);
-		auto clipper = draw::set_clip(clipping_rectangle);
-		impl_draw_children(x_offset, y_offset);
-	} else {
-		impl_draw_children(x_offset, y_offset);
-	}
+	const viewport_and_clip_rect_setter setter{*this, x_offset, y_offset};
+
+	impl_draw_children(x_offset, y_offset);
 }
 
 void widget::draw_foreground(int x_offset, int y_offset)
 {
 	assert(visible_ == visibility::visible);
 
-	if(redraw_action_ == redraw_action::partly) {
-		const SDL_Rect clipping_rectangle
-				= calculate_clipping_rectangle(x_offset, y_offset);
-		auto clipper = draw::set_clip(clipping_rectangle);
-		impl_draw_foreground(x_offset, y_offset);
-	} else {
-		impl_draw_foreground(x_offset, y_offset);
-	}
+	const viewport_and_clip_rect_setter setter{*this, x_offset, y_offset};
+
+	impl_draw_foreground(x_offset, y_offset);
 }
 
 void widget::populate_dirty_list(window& caller,
