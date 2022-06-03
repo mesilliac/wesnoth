@@ -35,7 +35,7 @@
 struct color_t;
 class surface;
 class texture;
-class SDL_Texture;
+struct SDL_Texture;
 
 namespace draw
 {
