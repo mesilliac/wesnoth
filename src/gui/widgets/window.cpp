@@ -619,13 +619,13 @@ void window::draw()
 	}
 
 	// Draw background.
-	this->draw_background(0, 0);
+	this->draw_background();
 
 	// Draw children.
-	this->draw_children(0, 0);
+	this->draw_children();
 
 	// Draw foreground.
-	this->draw_foreground(0, 0);
+	this->draw_foreground();
 
 	if(callback_next_draw_ != nullptr) {
 		callback_next_draw_();
