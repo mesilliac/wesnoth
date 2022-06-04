@@ -44,8 +44,7 @@ image::image(const implementation::builder_image& builder)
 
 point image::calculate_best_size() const
 {
-	// TODO: highdpi - image width / height accessors. The surface is unnecessary.
-	surface image(::image::get_image(::image::locator(get_label())));
+	texture image = ::image::get_texture(::image::locator{get_label()});
 
 	if(!image) {
 		DBG_GUI_L << LOG_HEADER << " empty image return default.\n";
@@ -55,7 +54,7 @@ point image::calculate_best_size() const
 	const point minimum = get_config_default_size();
 	const point maximum = get_config_maximum_size();
 
-	point result {image->w, image->h};
+	point result {image.w(), image.h()};
 
 	if(minimum.x > 0 && result.x < minimum.x) {
 		DBG_GUI_L << LOG_HEADER << " increase width to minimum.\n";
