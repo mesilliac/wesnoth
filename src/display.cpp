@@ -2861,7 +2861,7 @@ void display::refresh_report(const std::string& report_name, const config * new_
 				.set_characters_per_line(0);
 
 			// TODO: highdpi - don't convert this here
-			texture s = texture(text.render());
+			texture s = text.render_and_get_texture();
 
 			// check if next element is text with almost no space to show it
 			const int minimal_text = 12; // width in pixels
@@ -2875,7 +2875,7 @@ void display::refresh_report(const std::string& report_name, const config * new_
 				t = t + "    ";
 				text.set_text(t, true);
 				// TODO: highdpi - don't convert this here
-				s = texture(text.render());
+				s = text.render_and_get_texture();
 				// use the area of this element for next tooltips
 				used_ellipsis = true;
 				ellipsis_area.x = x;
