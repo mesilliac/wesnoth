@@ -44,9 +44,9 @@ image::image(const implementation::builder_image& builder)
 
 point image::calculate_best_size() const
 {
-	texture image = ::image::get_texture(::image::locator{get_label()});
+	point image_size = ::image::get_image_size(::image::locator{get_label()});
 
-	if(!image) {
+	if(image_size.x == 0 || image_size.y == 0) {
 		DBG_GUI_L << LOG_HEADER << " empty image return default.\n";
 		return get_config_default_size();
 	}
@@ -54,7 +54,7 @@ point image::calculate_best_size() const
 	const point minimum = get_config_default_size();
 	const point maximum = get_config_maximum_size();
 
-	point result {image.w(), image.h()};
+	point result {image_size.x, image_size.y};
 
 	if(minimum.x > 0 && result.x < minimum.x) {
 		DBG_GUI_L << LOG_HEADER << " increase width to minimum.\n";
