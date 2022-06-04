@@ -441,10 +441,11 @@ void text_shape::draw(wfl::map_formula_callable& variables)
 		.set_characters_per_line(characters_per_line_);
 
 	wfl::map_formula_callable local_variables(variables);
+	const auto [tw, th] = text_renderer.get_size();
 
 	// Translate text width and height back to draw-space, rounding up.
-	local_variables.add("text_width", wfl::variant((text_renderer.get_width() + pixel_scale - 1) / pixel_scale));
-	local_variables.add("text_height", wfl::variant((text_renderer.get_height() + pixel_scale - 1) / pixel_scale));
+	local_variables.add("text_width", wfl::variant((tw + pixel_scale - 1) / pixel_scale));
+	local_variables.add("text_height", wfl::variant((th + pixel_scale - 1) / pixel_scale));
 
 	const int x = x_(local_variables);
 	const int y = y_(local_variables);

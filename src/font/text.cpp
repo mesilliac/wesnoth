@@ -116,16 +116,6 @@ texture pango_text::render_and_get_texture()
 	}
 }
 
-int pango_text::get_width() const
-{
-	return this->get_size().x;
-}
-
-int pango_text::get_height() const
-{
-	return this->get_size().y;
-}
-
 point pango_text::get_size() const
 {
 	this->recalculate();
