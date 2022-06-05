@@ -49,8 +49,6 @@ CVideo* CVideo::singleton_ = nullptr;
 namespace
 {
 bool fake_interactive = false;
-
-const unsigned MAGIC_DPI_SCALE_NUMBER = 96;
 }
 
 namespace video2
