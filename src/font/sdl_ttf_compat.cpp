@@ -143,28 +143,27 @@ std::string pango_word_wrap(const std::string& unwrapped_text, int font_size, in
 SDL_Rect pango_draw_text(CVideo* video, const SDL_Rect& area, int size, const color_t& color, const std::string& text, int x, int y, bool use_tooltips, pango_text::FONT_STYLE style)
 {
 	auto& ptext = private_renderer();
-	const int pixel_scale = video ? video->get_pixel_scale() : 1;
 
 	ptext.set_text(text, false);
 	ptext.set_family_class(font::FONT_SANS_SERIF)
-		 .set_font_size(size * pixel_scale)
+		 .set_font_size(size)
 		 .set_font_style(style)
 		 .set_maximum_width(-1)
-		 .set_maximum_height(area.h * pixel_scale, true)
+		 .set_maximum_height(area.h, true)
 		 .set_foreground_color(color)
 		 .set_ellipse_mode(PANGO_ELLIPSIZE_END);
 
 	auto extents = ptext.get_size();
 	bool ellipsized = false;
 
-	if(extents.x > area.w * pixel_scale) {
-		ptext.set_maximum_width(area.w * pixel_scale);
+	if(extents.x > area.w) {
+		ptext.set_maximum_width(area.w);
 		ellipsized = true;
 	}
 
 	auto t = ptext.render_and_get_texture();
 
-	SDL_Rect res = {x, y, t.w() / pixel_scale, t.h() / pixel_scale};
+	SDL_Rect res = {x, y, t.w(), t.h()};
 
 	if(video) {
 		draw::blit(t, res);

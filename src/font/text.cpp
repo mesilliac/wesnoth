@@ -32,6 +32,7 @@
 #include "serialization/string_utils.hpp"
 #include "serialization/unicode.hpp"
 #include "preferences/general.hpp"
+#include "video.hpp"
 
 #include <boost/algorithm/string/replace.hpp>
 #include <boost/functional/hash_fwd.hpp>
@@ -63,6 +64,7 @@ pango_text::pango_text()
 	, maximum_length_(std::string::npos)
 	, calculation_dirty_(true)
 	, length_(0)
+	, pixel_scale_(1)
 	, surface_buffer_()
 {
 	// With 72 dpi the sizes are the same as with SDL_TTF so hardcoded.
@@ -99,28 +101,51 @@ texture pango_text::render_and_get_texture()
 	static std::map<std::size_t, texture> rendered_cache{};
 
 	// Update our settings then hash them.
+	update_pixel_scale();
 	recalculate();
 	const std::size_t hash = std::hash<pango_text>{}(*this);
 
 	// If we already have the appropriate texture in-cache, use it.
 	if(const auto iter = rendered_cache.find(hash); iter != rendered_cache.end()) {
-		return iter->second;
+		return with_draw_scale(iter->second);
 	}
 
 	if(surface text_surf = create_surface(); text_surf) {
 		const auto& [new_iter, added] = rendered_cache.try_emplace(hash, std::move(text_surf));
-		return new_iter->second;
+		return with_draw_scale(new_iter->second);
 	}
 
 	// Render output was null for some reason. Don't cache.
 	return {};
 }
 
-point pango_text::get_size() const
+texture pango_text::with_draw_scale(const texture& t) const
 {
+	auto info = t.get_info();
+	texture res(t);
+	const point draw_size = to_draw_scale({info.w, info.h});
+	res.set_draw_width(draw_size.x);
+	res.set_draw_height(draw_size.y);
+	return res;
+}
+
+point pango_text::to_draw_scale(const point& p) const
+{
+	// Round up, rather than truncating.
+	return {
+		(p.x + pixel_scale_ - 1) / pixel_scale_,
+		(p.y + pixel_scale_ - 1) / pixel_scale_
+	};
+}
+
+point pango_text::get_size()
+{
+	// if the pixel scale has changed, the size will also change.
+	update_pixel_scale();
+
 	this->recalculate();
 
-	return point(rect_.width, rect_.height);
+	return to_draw_scale({rect_.width, rect_.height});
 }
 
 bool pango_text::is_truncated() const
@@ -191,7 +216,7 @@ point pango_text::get_cursor_position(const unsigned column, const unsigned line
 	PangoRectangle rect;
 	pango_layout_get_cursor_pos(layout_.get(), offset, &rect, nullptr);
 
-	return point(PANGO_PIXELS(rect.x), PANGO_PIXELS(rect.y));
+	return to_draw_scale({PANGO_PIXELS(rect.x), PANGO_PIXELS(rect.y)});
 }
 
 std::size_t pango_text::get_maximum_length() const
@@ -326,8 +351,10 @@ pango_text& pango_text::set_family_class(font::family_class fclass)
 	return *this;
 }
 
-pango_text& pango_text::set_font_size(const unsigned font_size)
+pango_text& pango_text::set_font_size(unsigned font_size)
 {
+	font_size *= pixel_scale_;
+
 	if(font_size != font_size_) {
 		font_size_ = font_size;
 		calculation_dirty_ = true;
@@ -357,6 +384,8 @@ pango_text& pango_text::set_foreground_color(const color_t& color)
 
 pango_text& pango_text::set_maximum_width(int width)
 {
+	width *= pixel_scale_;
+
 	if(width <= 0) {
 		width = -1;
 	}
@@ -382,6 +411,8 @@ pango_text& pango_text::set_characters_per_line(const unsigned characters_per_li
 
 pango_text& pango_text::set_maximum_height(int height, bool multiline)
 {
+	height *= pixel_scale_;
+
 	if(height <= 0) {
 		height = -1;
 		multiline = false;
@@ -492,7 +523,28 @@ int pango_text::get_max_glyph_height() const
 	pango_font_metrics_unref(m);
 	g_object_unref(f);
 
-	return ceil(pango_units_to_double(ascent + descent));
+	return ceil(pango_units_to_double(ascent + descent) / pixel_scale_);
+}
+
+void pango_text::update_pixel_scale()
+{
+	const int ps = CVideo::get_singleton().get_pixel_scale();
+	if (ps == pixel_scale_) {
+		return;
+	}
+
+	font_size_ = (font_size_ / pixel_scale_) * ps;
+
+	if (maximum_width_ != -1) {
+		maximum_width_ = (maximum_width_ / pixel_scale_) * ps;
+	}
+
+	if (maximum_height_ != -1) {
+		maximum_height_ = (maximum_height_ / pixel_scale_) * ps;
+	}
+
+	calculation_dirty_ = true;
+	pixel_scale_ = ps;
 }
 
 void pango_text::recalculate() const

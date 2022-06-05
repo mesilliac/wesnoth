@@ -83,8 +83,8 @@ public:
 	/** Returns the cached texture, or creates a new one otherwise. */
 	texture render_and_get_texture();
 
-	/** Returns the pixel size needed for the text. */
-	point get_size() const;
+	/** Returns the size of the text, in drawing coordinates. */
+	point get_size();
 
 	/** Has the text been truncated? This happens if it exceeds max width or height. */
 	bool is_truncated() const;
@@ -112,7 +112,7 @@ public:
 	/***** ***** ***** ***** Query details ***** ***** ***** *****/
 
 	/**
-	 * Returns the maximum glyph height of a font, in pixels.
+	 * Returns the maximum glyph height of a font, in drawing coordinates.
 	 *
 	 * @returns                       The height of the tallest possible glyph for the selected
 	 *                                font. More specifically, the result is the sum of the maximum
@@ -121,7 +121,7 @@ public:
 	int get_max_glyph_height() const;
 
 	/**
-	 * Gets the location for the cursor.
+	 * Gets the location for the cursor, in drawing coordinates.
 	 *
 	 * @param column              The column offset of the cursor.
 	 * @param line                The line offset of the cursor.
@@ -213,7 +213,7 @@ public:
 
 	pango_text& set_family_class(font::family_class fclass);
 
-	pango_text& set_font_size(const unsigned font_size);
+	pango_text& set_font_size(unsigned font_size);
 
 	pango_text& set_font_style(const FONT_STYLE font_style);
 
@@ -336,6 +336,9 @@ private:
 	/** Length of the text. */
 	mutable std::size_t length_;
 
+	/** The pixel scale, used to render high-DPI text. */
+	int pixel_scale_;
+
 	/** Recalculates the text layout. */
 	void recalculate() const;
 
@@ -379,6 +382,21 @@ private:
 	static void copy_layout_properties(PangoLayout& src, PangoLayout& dst);
 
 	std::string format_links(std::string_view text) const;
+
+	/**
+	 * Adjust a texture's draw-width and height according to pixel scale.
+	 *
+	 * As fonts are rendered at output-scale, we need to do this just
+	 * before returning the rendered texture. These attributes are stored
+	 * as part of the returned texture object.
+	 */
+	texture with_draw_scale(const texture& t) const;
+
+	/** Scale the given render-space point to draw-space, rounding up. */
+	point to_draw_scale(const point& p) const;
+
+	/** Update pixel scale, if necessary. */
+	void update_pixel_scale();
 };
 
 /**

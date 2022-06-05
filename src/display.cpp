@@ -2877,7 +2877,6 @@ void display::refresh_report(const std::string& report_name, const config * new_
 
 			// Draw a text element.
 			font::pango_text& text = font::get_text_renderer();
-			const int pixel_scale = CVideo::get_singleton().get_pixel_scale();
 			bool eol = false;
 			if (t[t.size() - 1] == '\n') {
 				eol = true;
@@ -2886,12 +2885,12 @@ void display::refresh_report(const std::string& report_name, const config * new_
 			text.set_link_aware(false)
 				.set_text(t, true);
 			text.set_family_class(font::FONT_SANS_SERIF)
-				.set_font_size(item->font_size() * pixel_scale)
+				.set_font_size(item->font_size())
 				.set_font_style(font::pango_text::STYLE_NORMAL)
 				.set_alignment(PANGO_ALIGN_LEFT)
 				.set_foreground_color(item->font_rgb_set() ? item->font_rgb() : font::NORMAL_COLOR)
-				.set_maximum_width(area.w * pixel_scale)
-				.set_maximum_height(area.h * pixel_scale, false)
+				.set_maximum_width(area.w)
+				.set_maximum_height(area.h, false)
 				.set_ellipse_mode(PANGO_ELLIPSIZE_END)
 				.set_characters_per_line(0);
 
@@ -2900,7 +2899,7 @@ void display::refresh_report(const std::string& report_name, const config * new_
 			// check if next element is text with almost no space to show it
 			const int minimal_text = 12; // width in pixels
 			config::const_child_iterator ee = elements.begin();
-			if (!eol && rect.w - (x - rect.x + s.w() / pixel_scale) < minimal_text &&
+			if (!eol && rect.w - (x - rect.x + s.w()) < minimal_text &&
 				++ee != elements.end() && !(*ee)["text"].empty())
 			{
 				// make this element longer to trigger rendering of ellipsis
@@ -2913,12 +2912,12 @@ void display::refresh_report(const std::string& report_name, const config * new_
 				used_ellipsis = true;
 				ellipsis_area.x = x;
 				ellipsis_area.y = y;
-				ellipsis_area.w = s.w() / pixel_scale;
-				ellipsis_area.h = s.h() / pixel_scale;
+				ellipsis_area.w = s.w();
+				ellipsis_area.h = s.h();
 			}
 
-			area.w = s.w() / pixel_scale;
-			area.h = s.h() / pixel_scale;
+			area.w = s.w();
+			area.h = s.h();
 			draw::blit(s, area);
 			if (area.h > tallest) {
 				tallest = area.h;

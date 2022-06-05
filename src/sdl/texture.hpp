@@ -58,11 +58,29 @@ public:
 		return info(*this);
 	}
 
-	/** The width of the texture, in pixels. */
+	/**
+	 * The draw-space width of the texture, in pixels.
+	 *
+	 * This will usually be the real texture width in pixels, but may
+	 * differ in some situations. For high-DPI text, for example,
+	 * it will usually be equal to get_info().w / pixel_scale.
+	 */
 	int w() const { return w_; }
 
-	/** The height of the texture, in pixels. */
+	/**
+	 * The draw-space height of the texture, in pixels.
+	 *
+	 * This will usually be the real texture height in pixels, but may
+	 * differ in some situations. For high-DPI text, for example,
+	 * it will usually be equal to get_info().h / pixel_scale.
+	 */
 	int h() const { return h_; }
+
+	/** Set the intended width of the texture, in draw-space. */
+	void set_draw_width(int w) { w_ = w; }
+
+	/** Set the intended height of the texture, in draw-space. */
+	void set_draw_height(int h) { h_ = h; }
 
 	/** Sets the texture's alpha modifier. */
 	void set_alpha_mod(uint8_t alpha);

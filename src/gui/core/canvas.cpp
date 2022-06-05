@@ -419,7 +419,6 @@ void text_shape::draw(wfl::map_formula_callable& variables)
 	CVideo& video = CVideo::get_singleton();
 
 	font::pango_text& text_renderer = font::get_text_renderer();
-	const int pixel_scale = video.get_pixel_scale();
 
 	text_renderer
 		.set_link_aware(link_aware_(variables))
@@ -429,12 +428,12 @@ void text_shape::draw(wfl::map_formula_callable& variables)
 	// TODO: highdpi - determine how the font interface should work. Probably the way it is used here is fine. But the
 	// pixel scaling could theoretically be abstracted.
 	text_renderer.set_family_class(font_family_)
-		.set_font_size(font_size_(variables) * pixel_scale)
+		.set_font_size(font_size_(variables))
 		.set_font_style(font_style_)
 		.set_alignment(text_alignment_(variables))
 		.set_foreground_color(color_(variables))
-		.set_maximum_width(maximum_width_(variables) * pixel_scale)
-		.set_maximum_height(maximum_height_(variables) * pixel_scale, true)
+		.set_maximum_width(maximum_width_(variables))
+		.set_maximum_height(maximum_height_(variables), true)
 		.set_ellipse_mode(variables.has_key("text_wrap_mode")
 				? static_cast<PangoEllipsizeMode>(variables.query_value("text_wrap_mode").as_int())
 				: PANGO_ELLIPSIZE_END)
@@ -444,8 +443,8 @@ void text_shape::draw(wfl::map_formula_callable& variables)
 	const auto [tw, th] = text_renderer.get_size();
 
 	// Translate text width and height back to draw-space, rounding up.
-	local_variables.add("text_width", wfl::variant((tw + pixel_scale - 1) / pixel_scale));
-	local_variables.add("text_height", wfl::variant((th + pixel_scale - 1) / pixel_scale));
+	local_variables.add("text_width", wfl::variant(tw));
+	local_variables.add("text_height", wfl::variant(th));
 
 	const int x = x_(local_variables);
 	const int y = y_(local_variables);
@@ -458,8 +457,8 @@ void text_shape::draw(wfl::map_formula_callable& variables)
 		return;
 	}
 
-	const int unscaled_draw_w = tex.w() / pixel_scale;
-	const int unscaled_draw_h = tex.h() / pixel_scale;
+	const int unscaled_draw_w = tex.w();
+	const int unscaled_draw_h = tex.h();
 
 	// Warn if text will be clipped.
 	if(unscaled_draw_w > w) {
