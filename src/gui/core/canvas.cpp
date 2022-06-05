@@ -339,12 +339,17 @@ void image_shape::draw(wfl::map_formula_callable& variables)
 		draw::tiled(tex, dst_rect, true, mirror_(variables));
 		break;
 	case resize_mode::stretch:
+		// Stretching is identical to scaling in terms of handling.
 	case resize_mode::scale:
+		// Filtering mode is set on texture creation, so get a new one.
+		tex = image::get_texture(name, image::scale_quality::linear);
+		if(mirror_(variables)) {
+			draw::flipped(tex, dst_rect);
+		} else {
+			draw::blit(tex, dst_rect);
+		}
+		break;
 	case resize_mode::scale_sharp:
-		// TODO: highdpi - SDL requires that filtering mode be set per-texture, at texture creation. This will require
-		// either texture caches according to filtering mode, or an overhaul in how filtering type is requested so that
-		// the filter mode is specified as part of image loading, not image drawing.
-		// TODO: highdpi - is there any real difference between scale and stretch?
 		if(mirror_(variables)) {
 			draw::flipped(tex, dst_rect);
 		} else {
@@ -415,8 +420,6 @@ void text_shape::draw(wfl::map_formula_callable& variables)
 		DBG_GUI_D << "Text: no text to render, leave.\n";
 		return;
 	}
-
-	CVideo& video = CVideo::get_singleton();
 
 	font::pango_text& text_renderer = font::get_text_renderer();
 
