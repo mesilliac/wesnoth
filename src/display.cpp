@@ -2821,7 +2821,7 @@ void display::refresh_report(const std::string& report_name, const config * new_
 		tex.reset();
 		rect = new_rect;
 
-		// TODO: highdpi - i have no idea why this is neccesary, as the only report backgrounds i have seen were just black. Maybe it can just stop doing this?
+		// TODO: highdpi - partial redraw support for the underlying object
 
 		// If the rectangle is present, and we are blitting text,
 		// then we need to backup the surface.
@@ -2875,9 +2875,9 @@ void display::refresh_report(const std::string& report_name, const config * new_
 		{
 			if (used_ellipsis) goto skip_element;
 
-			// TODO: highdpi - high dpi text
 			// Draw a text element.
 			font::pango_text& text = font::get_text_renderer();
+			const int pixel_scale = CVideo::get_singleton().get_pixel_scale();
 			bool eol = false;
 			if (t[t.size() - 1] == '\n') {
 				eol = true;
@@ -2886,22 +2886,21 @@ void display::refresh_report(const std::string& report_name, const config * new_
 			text.set_link_aware(false)
 				.set_text(t, true);
 			text.set_family_class(font::FONT_SANS_SERIF)
-			    .set_font_size(item->font_size())
+				.set_font_size(item->font_size() * pixel_scale)
 				.set_font_style(font::pango_text::STYLE_NORMAL)
 				.set_alignment(PANGO_ALIGN_LEFT)
 				.set_foreground_color(item->font_rgb_set() ? item->font_rgb() : font::NORMAL_COLOR)
-				.set_maximum_width(area.w)
-				.set_maximum_height(area.h, false)
+				.set_maximum_width(area.w * pixel_scale)
+				.set_maximum_height(area.h * pixel_scale, false)
 				.set_ellipse_mode(PANGO_ELLIPSIZE_END)
 				.set_characters_per_line(0);
 
-			// TODO: highdpi - don't convert this here
 			texture s = text.render_and_get_texture();
 
 			// check if next element is text with almost no space to show it
 			const int minimal_text = 12; // width in pixels
 			config::const_child_iterator ee = elements.begin();
-			if (!eol && rect.w - (x - rect.x + s.w()) < minimal_text &&
+			if (!eol && rect.w - (x - rect.x + s.w() / pixel_scale) < minimal_text &&
 				++ee != elements.end() && !(*ee)["text"].empty())
 			{
 				// make this element longer to trigger rendering of ellipsis
@@ -2909,18 +2908,17 @@ void display::refresh_report(const std::string& report_name, const config * new_
 				//NOTE this space should be longer than minimal_text pixels
 				t = t + "    ";
 				text.set_text(t, true);
-				// TODO: highdpi - don't convert this here
 				s = text.render_and_get_texture();
 				// use the area of this element for next tooltips
 				used_ellipsis = true;
 				ellipsis_area.x = x;
 				ellipsis_area.y = y;
-				ellipsis_area.w = s.w();
-				ellipsis_area.h = s.h();
+				ellipsis_area.w = s.w() / pixel_scale;
+				ellipsis_area.h = s.h() / pixel_scale;
 			}
 
-			area.w = s.w();
-			area.h = s.h();
+			area.w = s.w() / pixel_scale;
+			area.h = s.h() / pixel_scale;
 			draw::blit(s, area);
 			if (area.h > tallest) {
 				tallest = area.h;
