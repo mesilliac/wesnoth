@@ -474,10 +474,6 @@ void preferences_dialog::post_build(window& window)
 	register_integer("idle_anim_frequency", true,
 		idle_anim_rate, set_idle_anim_rate);
 
-	/* FONT SCALING */
-	//register_integer("scaling_slider", true,
-	//	font_scaling, set_font_scaling);
-
 	/* FPS LIMITER */
 	register_bool("fps_limiter", true,
 		[]() { return draw_delay() != 0; }, [](bool v) { set_draw_delay(v ? -1 : 0); });
@@ -1022,10 +1018,6 @@ void preferences_dialog::pre_show(window& window)
 	gui2::bind_status_label<slider>(&window, "max_saves_slider");
 	gui2::bind_status_label<slider>(&window, "turbo_slider");
 	gui2::bind_status_label<slider>(&window, "pixel_scale_slider");
-
-	//gui2::bind_status_label<slider>(&window, "scaling_slider",   [](slider& s)->std::string {
-	//	return s.get_value_label() + "%";
-	//});
 
 	listbox& selector = find_widget<listbox>(&window, "selector", false);
 	stacked_widget& pager = find_widget<stacked_widget>(&window, "pager", false);

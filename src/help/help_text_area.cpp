@@ -23,7 +23,6 @@
 #include "lexical_cast.hpp"
 #include "log.hpp"                      // for LOG_STREAM, log_domain, etc
 #include "picture.hpp"                  // for get_image
-#include "preferences/general.hpp"      // for font_scaled
 #include "sdl/rect.hpp"                 // for draw_rectangle, etc
 #include "sdl/texture.hpp"              // for texture
 #include "serialization/parser.hpp"     // for read, write
@@ -309,7 +308,6 @@ void help_text_area::add_text_item(const std::string& text, const std::string& r
 {
 	const int font_size = _font_size < 0 ? normal_font_size : _font_size;
 	// font::line_width(), font::get_rendered_text() are not use scaled font inside
-	const int scaled_font_size = preferences::font_scaled(font_size);
 	if (text.empty())
 		return;
 	const int remaining_width = get_remaining_width();
@@ -329,7 +327,7 @@ void help_text_area::add_text_item(const std::string& text, const std::string& r
 	state |= bold ? font::pango_text::STYLE_BOLD : 0;
 	state |= italic ? font::pango_text::STYLE_ITALIC : 0;
 	if (curr_loc_.first != get_min_x(curr_loc_.second, curr_row_height_)
-		&& remaining_width < font::pango_line_width(first_word, scaled_font_size, font::pango_text::FONT_STYLE(state))) {
+		&& remaining_width < font::pango_line_width(first_word, font_size, font::pango_text::FONT_STYLE(state))) {
 		// The first word does not fit, and we are not at the start of
 		// the line. Move down.
 		down_one_line();
@@ -357,7 +355,7 @@ void help_text_area::add_text_item(const std::string& text, const std::string& r
 		else {
 			// TODO: highdpi - pango textures
 			texture tex(font::pango_render_text(first_part,
-				scaled_font_size, color, font::pango_text::FONT_STYLE(state)));
+				font_size, color, font::pango_text::FONT_STYLE(state)));
 			if (tex) {
 				add_item(item(tex, curr_loc_.first, curr_loc_.second,
 					first_part, ref_dst));
@@ -369,16 +367,16 @@ void help_text_area::add_text_item(const std::string& text, const std::string& r
 
 			const std::string first_word_before = get_first_word(s);
 			const std::string first_word_after = get_first_word(remove_first_space(s));
-			if (get_remaining_width() >= font::pango_line_width(first_word_after, scaled_font_size, font::pango_text::FONT_STYLE(state))
+			if (get_remaining_width() >= font::pango_line_width(first_word_after, font_size, font::pango_text::FONT_STYLE(state))
 				&& get_remaining_width()
-				< font::pango_line_width(first_word_before, scaled_font_size, font::pango_text::FONT_STYLE(state))) {
+				< font::pango_line_width(first_word_before, font_size, font::pango_text::FONT_STYLE(state))) {
 				// If the removal of the space made this word fit, we
 				// must move down a line, otherwise it will be drawn
 				// without a space at the end of the line.
 				s = remove_first_space(s);
 				down_one_line();
 			}
-			else if (!(font::pango_line_width(first_word_before, scaled_font_size, font::pango_text::FONT_STYLE(state))
+			else if (!(font::pango_line_width(first_word_before, font_size, font::pango_text::FONT_STYLE(state))
 					   < get_remaining_width())) {
 				s = remove_first_space(s);
 			}
