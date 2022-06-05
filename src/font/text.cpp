@@ -353,10 +353,9 @@ pango_text& pango_text::set_family_class(font::family_class fclass)
 
 pango_text& pango_text::set_font_size(unsigned font_size)
 {
-	font_size *= pixel_scale_;
-
-	if(font_size != font_size_) {
-		font_size_ = font_size;
+	unsigned int actual_size = preferences::font_scaled(font_size) * pixel_scale_;
+	if(actual_size != font_size_) {
+		font_size_ = actual_size;
 		calculation_dirty_ = true;
 	}
 
