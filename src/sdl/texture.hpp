@@ -19,6 +19,7 @@
 #include <memory>
 
 class surface;
+struct color_t;
 
 /**
  * Wrapper class to encapsulate creation and management of an SDL_Texture.
@@ -82,8 +83,18 @@ public:
 	/** Set the intended height of the texture, in draw-space. */
 	void set_draw_height(int h) { h_ = h; }
 
-	/** Sets the texture's alpha modifier. */
+	/** Alpha modifier. Multiplies alpha when drawing. */
 	void set_alpha_mod(uint8_t alpha);
+	uint8_t get_alpha_mod();
+
+	/** Blend mode. Modifies how draw operations are applied. */
+	void set_blend_mode(SDL_BlendMode);
+	SDL_BlendMode get_blend_mode();
+
+	/** Colour modifier. Multiplies each colour component when drawing. */
+	void set_color_mod(uint8_t r, uint8_t g, uint8_t b);
+	void set_color_mod(color_t);
+	color_t get_color_mod();
 
 	/** Releases ownership of the managed texture and resets the ptr to null. */
 	void reset();
