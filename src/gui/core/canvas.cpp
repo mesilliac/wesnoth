@@ -338,6 +338,9 @@ void image_shape::draw(wfl::map_formula_callable& variables)
 	case resize_mode::tile_center:
 		draw::tiled(tex, dst_rect, true, mirror_(variables));
 		break;
+	case resize_mode::tile_highres:
+		draw::tiled_highres(tex, dst_rect, false, mirror_(variables));
+		break;
 	case resize_mode::stretch:
 		// Stretching is identical to scaling in terms of handling.
 	case resize_mode::scale:
@@ -368,6 +371,8 @@ image_shape::resize_mode image_shape::get_resize_mode(const std::string& resize_
 		return resize_mode::tile;
 	} else if(resize_mode == "tile_center") {
 		return resize_mode::tile_center;
+	} else if(resize_mode == "tile_highres") {
+		return resize_mode::tile_highres;
 	} else if(resize_mode == "stretch") {
 		return resize_mode::stretch;
 	} else if(resize_mode == "scale_sharp") {
