@@ -433,8 +433,6 @@ void text_shape::draw(wfl::map_formula_callable& variables)
 		.set_link_color(link_color_(variables))
 		.set_text(text, text_markup_(variables));
 
-	// TODO: highdpi - determine how the font interface should work. Probably the way it is used here is fine. But the
-	// pixel scaling could theoretically be abstracted.
 	text_renderer.set_family_class(font_family_)
 		.set_font_size(font_size_(variables))
 		.set_font_style(font_style_)

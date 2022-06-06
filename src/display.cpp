@@ -1600,7 +1600,6 @@ void display::render_image(int x, int y, const display::drawing_layer drawing_la
 		tex = image::get_texture(i_locator);
 	}
 
-	// TODO: highdpi - flipping and alpha modification need to be propagated from hreverse, vreverse, alpha
 	const uint8_t alpha_mod = std::clamp(alpha, 0, 255);
 	drawing_buffer_add(drawing_layer, loc, dest, tex, sdl::empty_rect,
 		hreverse, vreverse, alpha_mod);
