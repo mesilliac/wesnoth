@@ -24,6 +24,7 @@
 #include "cursor.hpp"
 #include "gettext.hpp"
 #include "gui/auxiliary/find_widget.hpp"
+#include "gui/core/draw_manager.hpp"
 #include "gui/core/timer.hpp"
 #include "gui/widgets/drawing.hpp"
 #include "gui/widgets/label.hpp"
@@ -31,6 +32,7 @@
 #include "gui/widgets/window.hpp"
 #include "log.hpp"
 #include "preferences/general.hpp"
+#include "sdl/rect.hpp"
 #include "video.hpp"
 
 #include <cstdlib>
@@ -40,6 +42,9 @@ static lg::log_domain log_loadscreen("loadscreen");
 #define LOG_LS LOG_STREAM(info, log_loadscreen)
 #define ERR_LS LOG_STREAM(err, log_loadscreen)
 #define WRN_LS LOG_STREAM(warn, log_loadscreen)
+
+static lg::log_domain log_display("display");
+#define DBG_DP LOG_STREAM(debug, log_display)
 
 static const std::map<loading_stage, std::string> stage_names {
 	{ loading_stage::build_terrain,       N_("Building terrain rules") },
@@ -106,8 +111,10 @@ void loading_screen::pre_show(window& window)
 	animation_ = find_widget<drawing>(&window, "animation", false, true);
 
 	// Add a draw callback to handle the animation, et al.
-	window.connect_signal<event::DRAW>(
-		std::bind(&loading_screen::draw_callback, this), event::dispatcher::front_child);
+	gui2::draw_manager::register_static_animation(
+		this,
+		CVideo::get_singleton().draw_area() // STUB
+	);
 }
 
 void loading_screen::post_show(window& /*window*/)
@@ -167,19 +174,22 @@ void loading_screen::process(events::pump_info&)
 
 	// If there's nothing more to do, close.
 	if (load_funcs_.empty()) {
+		gui2::draw_manager::unregister_drawable(this);
 		get_window()->close();
 	}
 }
 
-void loading_screen::draw_callback()
+bool loading_screen::expose(const SDL_Rect& region)
 {
+	DBG_DP << "loading_screen::expose " << region << std::endl;
+
 	loading_stage stage = current_stage_.load(std::memory_order_acquire);
 
 	if(stage != loading_stage::none && (current_visible_stage_ == visible_stages_.end() || stage != current_visible_stage_->first)) {
 		auto iter = visible_stages_.find(stage);
 		if(iter == visible_stages_.end()) {
 			WRN_LS << "Stage missing description." << std::endl;
-			return;
+			return false;
 		}
 
 		current_visible_stage_ = iter;
@@ -196,6 +206,8 @@ void loading_screen::draw_callback()
 
 	animation_->get_drawing_canvas().set_variable("time", wfl::variant(duration_cast<milliseconds>(now - *animation_start_).count()));
 	animation_->set_is_dirty(true);
+
+	return get_window()->expose(region);
 }
 
 loading_screen::~loading_screen()

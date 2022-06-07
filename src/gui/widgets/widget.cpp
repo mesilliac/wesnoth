@@ -19,6 +19,7 @@
 #include "gui/widgets/grid.hpp"
 #include "gui/widgets/settings.hpp"
 #include "gui/widgets/window.hpp"
+#include "gui/core/draw_manager.hpp"
 #include "gui/core/event/message.hpp"
 #include "gui/core/log.hpp"
 #include "gui/core/window_builder/helper.hpp"
@@ -478,6 +479,11 @@ void widget::set_is_dirty(const bool is_dirty)
 bool widget::get_is_dirty() const
 {
 	return is_dirty_;
+}
+
+void widget::queue_redraw()
+{
+	draw_manager::invalidate_region(get_rectangle());
 }
 
 void widget::set_visible(const visibility visible)

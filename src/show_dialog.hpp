@@ -19,6 +19,7 @@ class surface;
 
 #include "cursor.hpp"
 #include "floating_label.hpp"
+#include "gui/core/top_level_drawable.hpp"
 #include "tooltips.hpp"
 #include "video.hpp"
 #include "widgets/button.hpp"
@@ -49,7 +50,7 @@ private:
 	bool reset_to;
 };
 
-class dialog_frame :public video2::draw_layering {
+class dialog_frame : public gui2::top_level_drawable {
 public:
 	struct dimension_measurements {
 		dimension_measurements();
@@ -81,6 +82,9 @@ public:
 	int bottom_padding() const;
 
 	void draw();
+
+	/** Called by gui2::draw_manager when it believes a redraw is necessary. */
+	bool expose(const SDL_Rect &region) override;
 
 	//called by draw
 	void draw_border();

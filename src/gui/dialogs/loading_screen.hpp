@@ -14,6 +14,7 @@
 
 #pragma once
 
+#include "gui/core/top_level_drawable.hpp"
 #include "gui/dialogs/modal_dialog.hpp"
 
 #include "events.hpp"
@@ -72,7 +73,7 @@ class window;
 
 namespace dialogs
 {
-class loading_screen : public modal_dialog, public events::pump_monitor
+class loading_screen : public modal_dialog, public events::pump_monitor, public gui2::top_level_drawable
 {
 public:
 	loading_screen(std::function<void()> f);
@@ -118,8 +119,12 @@ private:
 	/** Inherited from events::pump_monitor. */
 	virtual void process(events::pump_info&) override;
 
-	/** Callback to handle drawing the progress animation. */
-	void draw_callback();
+	/**
+	 * Called by gui2::draw_manager when it believes a redraw is necessary.
+	 *
+	 * Currently this is every frame, as pre_show() registers as an animator.
+	 */
+	virtual bool expose(const SDL_Rect& region) override;
 
 	static loading_screen* singleton_;
 

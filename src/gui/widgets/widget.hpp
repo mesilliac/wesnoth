@@ -640,6 +640,14 @@ public:
 	 */
 	virtual void set_visible_rectangle(const SDL_Rect& rectangle);
 
+	/**
+	 * Indicates that this widget should be redrawn.
+	 *
+	 * This function should be called by widgets whenever their visible
+	 * state changes.
+	 */
+	void queue_redraw();
+
 	/*** *** *** *** *** *** Setters and getters. *** *** *** *** *** ***/
 
 	void set_is_dirty(const bool is_dirty);

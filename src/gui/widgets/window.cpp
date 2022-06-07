@@ -32,6 +32,7 @@
 #include "log.hpp"
 #include "gui/auxiliary/typed_formula.hpp"
 #include "gui/auxiliary/find_widget.hpp"
+#include "gui/core/draw_manager.hpp"
 #include "gui/core/event/distributor.hpp"
 #include "gui/core/event/handler.hpp"
 #include "gui/core/event/message.hpp"
@@ -83,6 +84,9 @@ static lg::log_domain log_gui("gui/layout");
 #define LOG_IMPL_SCOPE_HEADER                                                  \
 	window.get_control_type() + " [" + window.id() + "] " + __func__
 #define LOG_IMPL_HEADER LOG_IMPL_SCOPE_HEADER + ':'
+
+static lg::log_domain log_display("display");
+#define DBG_DP LOG_STREAM(debug, log_display)
 
 namespace gui2
 {
@@ -516,6 +520,8 @@ int window::show(const bool restore, const unsigned auto_close_timeout)
 	 */
 	invalidate_layout();
 	suspend_drawing_ = false;
+	layout();
+	queue_redraw();
 
 	if(auto_close_timeout) {
 		// Make sure we're drawn before we try to close ourselves, which can
@@ -530,7 +536,6 @@ int window::show(const bool restore, const unsigned auto_close_timeout)
 
 		delay_event(event, auto_close_timeout);
 	}
-
 
 	try
 	{
@@ -775,6 +780,17 @@ void window::undraw()
 	if(restore_ && restorer_) {
 		draw::blit(restorer_, get_rectangle());
 	}
+}
+
+bool window::expose(const SDL_Rect& region)
+{
+	DBG_DP << "window::expose " << region << std::endl;
+	rect i = get_rectangle().intersect(region);
+	if (i.empty()) {
+		return false;
+	}
+	draw(); // TODO: region
+	return true;
 }
 
 window::invalidate_layout_blocker::invalidate_layout_blocker(window& window)

@@ -50,44 +50,6 @@ bool fake_interactive = false;
 point fake_size = {0, 0};
 }
 
-namespace video2
-{
-std::list<events::sdl_handler*> draw_layers;
-
-draw_layering::draw_layering(const bool auto_join)
-	: sdl_handler(auto_join)
-{
-	draw_layers.push_back(this);
-}
-
-draw_layering::~draw_layering()
-{
-	draw_layers.remove(this);
-
-	video2::trigger_full_redraw();
-}
-
-void trigger_full_redraw()
-{
-	SDL_Event event;
-	event.type = SDL_WINDOWEVENT;
-	event.window.event = SDL_WINDOWEVENT_EXPOSED;
-
-	for(const auto& layer : draw_layers) {
-		layer->handle_window_event(event);
-	}
-
-	SDL_Event drawEvent;
-	sdl::UserEvent data(DRAW_ALL_EVENT);
-
-	drawEvent.type = DRAW_ALL_EVENT;
-	drawEvent.user = data;
-	SDL_FlushEvent(DRAW_ALL_EVENT);
-	SDL_PushEvent(&drawEvent);
-}
-
-} // video2
-
 CVideo::CVideo(FAKE_TYPES type)
 	: window()
 	, fake_screen_(false)
@@ -710,6 +672,7 @@ void CVideo::set_window_icon(surface& icon)
 void CVideo::clear_screen()
 {
 	if(window) {
+		DBG_DP << "clearing screen" << std::endl;
 		window->fill(0, 0, 0, 255);;
 	}
 }

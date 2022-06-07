@@ -175,7 +175,7 @@ display::display(const display_context* dc,
 		const std::string& theme_id,
 		const config& level,
 		bool auto_join)
-	: video2::draw_layering(auto_join)
+	: events::sdl_handler(auto_join)
 	, dc_(dc)
 	, halo_man_(new halo::manager(*this))
 	, wb_(wb)
@@ -2483,6 +2483,13 @@ void display::draw(bool update, bool force)
 	}
 	draw_wrap(update, force);
 	post_draw();
+}
+
+bool display::expose(const SDL_Rect& region)
+{
+	(void)region; // TODO
+	draw();
+	return true; // also TODO
 }
 
 map_labels& display::labels()

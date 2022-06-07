@@ -1087,6 +1087,9 @@ void scrollbar_container::scrollbar_moved()
 
 	// Update scrollbar.
 	set_scrollbar_button_status();
+
+	// Queue redraw.
+	queue_redraw();
 }
 
 const std::string& scrollbar_container::type()

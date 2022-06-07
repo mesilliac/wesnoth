@@ -386,4 +386,12 @@ void dialog_frame::draw()
 	dirty_ = false;
 }
 
+bool dialog_frame::expose(const SDL_Rect& region)
+{
+	(void)region; // TODO
+	dirty_ = true;
+	draw();
+	return true; // also TODO
+}
+
 }

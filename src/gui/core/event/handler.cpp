@@ -17,6 +17,7 @@
 
 #include "gui/core/event/handler.hpp"
 
+#include "gui/core/draw_manager.hpp"
 #include "gui/core/event/dispatcher.hpp"
 #include "gui/core/timer.hpp"
 #include "gui/core/log.hpp"
@@ -592,12 +593,18 @@ void sdl_event_handler::activate()
 
 void sdl_event_handler::draw()
 {
+	/*
 	for(auto dispatcher : dispatchers_)
 	{
 		dispatcher->fire(DRAW, dynamic_cast<widget&>(*dispatcher));
 	}
 
 	if(!dispatchers_.empty()) {
+		CVideo::get_singleton().render_screen();
+	}
+	*/
+
+	if(draw_manager::draw()) {
 		CVideo::get_singleton().render_screen();
 	}
 }

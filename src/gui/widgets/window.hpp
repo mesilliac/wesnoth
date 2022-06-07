@@ -25,6 +25,7 @@
 #include "formula/function.hpp"
 #include "gui/auxiliary/typed_formula.hpp"
 #include "gui/core/event/handler.hpp"
+#include "gui/core/top_level_drawable.hpp"
 #include "gui/core/window_builder.hpp"
 #include "gui/widgets/panel.hpp"
 #include "gui/widgets/retval.hpp"
@@ -63,7 +64,7 @@ class distributor;
  * base class of top level items, the only item which needs to store the final canvases to draw on.
  * A window is a kind of panel see the panel for which fields exist.
  */
-class window : public panel
+class window : public panel, public top_level_drawable
 {
 	friend class debug_layout_graph;
 	friend std::unique_ptr<window> build(const builder_window::window_resolution&);
@@ -165,6 +166,9 @@ public:
 	{
 		dirty_list_.push_back(call_stack);
 	}
+
+	/** Called by gui2::draw_manager when it believes a redraw is necessary. */
+	virtual bool expose(const SDL_Rect &region) override;
 
 	/** The status of the window. */
 	enum class status {

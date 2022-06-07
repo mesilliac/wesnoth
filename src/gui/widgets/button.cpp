@@ -64,6 +64,7 @@ void button::set_active(const bool active)
 {
 	if(get_active() != active) {
 		set_state(active ? ENABLED : DISABLED);
+		queue_redraw();
 	}
 }
 
@@ -82,6 +83,7 @@ void button::set_state(const state_t state)
 	if(state != state_) {
 		state_ = state;
 		set_is_dirty(true);
+		queue_redraw();
 	}
 }
 

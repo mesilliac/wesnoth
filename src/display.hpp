@@ -55,6 +55,7 @@ namespace wb {
 #include "filesystem.hpp"
 #include "font/standard_colors.hpp"
 #include "game_config.hpp"
+#include "gui/core/top_level_drawable.hpp"
 #include "picture.hpp" //only needed for enums (!)
 #include "key.hpp"
 #include "time_of_day.hpp"
@@ -78,7 +79,7 @@ namespace wb {
 
 class gamemap;
 
-class display : public video2::draw_layering
+class display : public gui2::top_level_drawable, public events::sdl_handler
 {
 public:
 	display(const display_context* dc,
@@ -565,6 +566,9 @@ public:
 	void draw(bool update);
 
 	void draw(bool update, bool force);
+
+	/** Called by gui2::draw_manager when it believes a redraw is necessary. */
+	bool expose(const SDL_Rect &region) override;
 
 	map_labels& labels();
 	const map_labels& labels() const;
