@@ -39,9 +39,7 @@ window::window(const std::string& title,
 	}
 
 #if SDL_VERSION_ATLEAST(2, 0, 10)
-	// Rendering in batches (for efficiency) is enabled by default from SDL 2.0.10
-	// The way Wesnoth uses SDL as of September 2019 does not work well with this rendering mode (eg story-only scenarios)
-	SDL_SetHint(SDL_HINT_RENDER_BATCHING, "0");
+	SDL_SetHint(SDL_HINT_RENDER_BATCHING, "1");
 #endif
 
 	if(!SDL_CreateRenderer(window_, -1, render_flags)) {
