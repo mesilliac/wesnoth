@@ -18,15 +18,15 @@
 #include "display.hpp"
 #include "floating_label.hpp"
 #include "font/sdl_ttf_compat.hpp"
-#include "picture.hpp"
 #include "log.hpp"
+#include "picture.hpp"
 #include "preferences/general.hpp"
+#include "sdl/input.hpp"
 #include "sdl/point.hpp"
+#include "sdl/texture.hpp"
 #include "sdl/userevent.hpp"
 #include "sdl/utils.hpp"
 #include "sdl/window.hpp"
-#include "sdl/input.hpp"
-#include "sdl/texture.hpp"
 
 #ifdef TARGET_OS_OSX
 #include "desktop/apple_video.hpp"
@@ -43,8 +43,6 @@ static lg::log_domain log_display("display");
 #define ERR_DP LOG_STREAM(err, log_display)
 #define WRN_DP LOG_STREAM(warn, log_display)
 #define DBG_DP LOG_STREAM(debug, log_display)
-
-CVideo* CVideo::singleton_ = nullptr;
 
 namespace
 {
@@ -95,7 +93,6 @@ void trigger_full_redraw()
 
 CVideo::CVideo(FAKE_TYPES type)
 	: window()
-	, drawing_texture_(nullptr)
 	, render_texture_(nullptr)
 	, fake_screen_(false)
 	, help_string_(0)
@@ -126,9 +123,7 @@ CVideo::CVideo(FAKE_TYPES type)
 
 void CVideo::initSDL()
 {
-	const int res = SDL_InitSubSystem(SDL_INIT_VIDEO);
-
-	if(res < 0) {
+	if(SDL_InitSubSystem(SDL_INIT_VIDEO) < 0) {
 		ERR_DP << "Could not initialize SDL_video: " << SDL_GetError() << std::endl;
 		throw error("Video initialization failed");
 	}
@@ -334,7 +329,7 @@ void CVideo::init_window()
 
 	// It is assumed that this function is only ever called once.
 	// If that is no longer true, then you should clean things up.
-	assert(!render_texture_ && !drawing_texture_);
+	assert(!render_texture_);
 
 	std::cerr << "Setting mode to " << w << "x" << h << std::endl;
 
@@ -408,16 +403,6 @@ SDL_Rect CVideo::input_area() const
 	return {0, 0, p.x, p.y};
 }
 
-int CVideo::get_width() const
-{
-	return logical_size_.x;
-}
-
-int CVideo::get_height() const
-{
-	return logical_size_.y;
-}
-
 void CVideo::delay(unsigned int milliseconds)
 {
 	if(!game_config::no_delay) {
@@ -433,7 +418,7 @@ void CVideo::force_render_target(SDL_Texture* t)
 	// so make sure it gets set back appropriately.
 	if (t == nullptr || t == render_texture_) {
 		// TODO: highdpi - sort out who owns this
-		window->set_logical_size(get_width(), get_height());
+		window->set_logical_size(draw_area().w, draw_area().h);
 	}
 }
 
@@ -444,7 +429,7 @@ SDL_Texture* CVideo::get_render_target()
 
 SDL_Rect CVideo::clip_to_draw_area(const SDL_Rect* r) const
 {
-	if (r) {
+	if(r) {
 		return sdl::intersect_rects(*r, draw_area());
 	} else {
 		return draw_area();
@@ -454,7 +439,7 @@ SDL_Rect CVideo::clip_to_draw_area(const SDL_Rect* r) const
 SDL_Rect CVideo::to_output(const SDL_Rect& r) const
 {
 	int s = get_pixel_scale();
-	return {s*r.x, s*r.y, s*r.w, s*r.h};
+	return {s * r.x, s * r.y, s * r.w, s * r.h};
 }
 
 void CVideo::render_screen()
@@ -482,7 +467,7 @@ void CVideo::render_screen()
 
 		// SDL resets the logical size when setting a render texture target,
 		// so we also have to reset that every time.
-		window->set_logical_size(get_width(), get_height());
+		window->set_logical_size(draw_area().w, draw_area().h);
 	}
 }
 
@@ -541,15 +526,15 @@ surface CVideo::read_pixels(SDL_Rect* r)
 
 surface CVideo::read_pixels_low_res(SDL_Rect* r)
 {
-	if (!window) {
+	if(!window) {
 		WRN_DP << "trying to read pixels with no window" << std::endl;
 		return surface();
 	}
 	surface s = read_pixels(r);
-	if (r) {
+	if(r) {
 		return scale_surface(s, r->w, r->h);
 	} else {
-		return scale_surface(s, get_width(), get_height());
+		return scale_surface(s, draw_area().w, draw_area().h);
 	}
 }
 
@@ -586,11 +571,9 @@ void CVideo::set_window_icon(surface& icon)
 
 void CVideo::clear_screen()
 {
-	if(!window) {
-		return;
+	if(window) {
+		window->fill(0, 0, 0, 255);;
 	}
-
-	window->fill(0, 0, 0, 255);
 }
 
 sdl::window* CVideo::get_window()
@@ -628,11 +611,7 @@ std::vector<std::string> CVideo::enumerate_drivers()
 
 bool CVideo::window_has_flags(uint32_t flags) const
 {
-	if(!window) {
-		return false;
-	}
-
-	return (window->get_flags() & flags) != 0;
+	return window && (window->get_flags() & flags) != 0;
 }
 
 std::vector<point> CVideo::get_available_resolutions(const bool include_current)
@@ -652,11 +631,6 @@ std::vector<point> CVideo::get_available_resolutions(const bool include_current)
 	}
 
 	const point min_res(preferences::min_window_width, preferences::min_window_height);
-
-#if 0
-	// DPI scale factor.
-	auto [scale_h, scale_v] = get_dpi_scale_factor();
-#endif
 
 	// The maximum size to which this window can be set. For some reason this won't
 	// pop up as a display mode of its own.
@@ -716,7 +690,7 @@ int CVideo::set_help_string(const std::string& str)
 	int size = font::SIZE_LARGE;
 
 	while(size > 0) {
-		if(font::pango_line_width(str, size) > get_width()) {
+		if(font::pango_line_width(str, size) > draw_area().w) {
 			size--;
 		} else {
 			break;
@@ -727,7 +701,7 @@ int CVideo::set_help_string(const std::string& str)
 
 	font::floating_label flabel(str);
 	flabel.set_font_size(size);
-	flabel.set_position(get_width() / 2, get_height());
+	flabel.set_position(draw_area().w / 2, draw_area().h);
 	flabel.set_bg_color(color);
 	flabel.set_border_size(border);
 
@@ -779,11 +753,6 @@ void CVideo::set_fullscreen(bool ison)
 void CVideo::toggle_fullscreen()
 {
 	set_fullscreen(!preferences::fullscreen());
-}
-
-bool CVideo::set_resolution(const unsigned width, const unsigned height)
-{
-	return set_resolution(point(width, height));
 }
 
 bool CVideo::set_resolution(const point& resolution)
