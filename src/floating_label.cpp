@@ -212,6 +212,39 @@ bool floating_label::create_texture()
 
 void floating_label::draw(int time)
 {
+	// No-op if texture is valid
+	if(!create_texture()) {
+		return;
+	}
+
+	SDL_Point pos = get_loc(time);
+	SDL_Rect draw_rect {pos.x, pos.y, tex_.w(), tex_.h()};
+
+	move(xmove_, ymove_);
+
+	// Draw a semi-transparent background background alpha provided.
+	// NOTE: doing this this way instead of embedding it as part of label texture itself does
+	// have the side effect of removing the background from the fadeout effect. However, in
+	// practical use only the non-background versions are used with the fadeout effect. I can do
+	// some alpha fadeout on the background later too if relevant.
+	if(bgcolor_.a != 255) {
+		SDL_Rect bg_rect {
+			draw_rect.x -  border_,
+			draw_rect.y -  border_,
+			draw_rect.w + (border_ * 2),
+			draw_rect.h + (border_ * 2)
+		};
+
+		draw::fill(bg_rect, bgcolor_);
+	}
+
+	// Fade the label out according to the time.
+	tex_.set_alpha_mod(get_alpha(time));
+
+	// Apply the label texture to the screen.
+	draw::blit(tex_, draw_rect);
+
+#if 0
 	if(!visible_) {
 		buf_.reset();
 		return;
@@ -238,6 +271,7 @@ void floating_label::draw(int time)
 
 	// Apply the label texture to the screen.
 	draw::blit(tex_, draw_rect);
+#endif
 }
 
 void floating_label::set_lifetime(int lifetime, int fadeout)
@@ -252,7 +286,7 @@ SDL_Point floating_label::get_loc(int time)
 {
 	int time_alive = get_time_alive(time);
 	return {
-		static_cast<int>(time_alive * xmove_ + xpos(draw_size_.x)),
+		static_cast<int>(time_alive * xmove_ + xpos(tex_.w())),
 		static_cast<int>(time_alive * ymove_ + ypos_)
 	};
 }
