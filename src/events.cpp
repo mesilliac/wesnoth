@@ -18,6 +18,7 @@
 #include "cursor.hpp"
 #include "desktop/clipboard.hpp"
 #include "log.hpp"
+#include "gui/core/draw_manager.hpp"
 #include "quit_confirmation.hpp"
 #include "sdl/userevent.hpp"
 #include "utils/ranges.hpp"
@@ -692,6 +693,7 @@ void pump()
 		}
 
 		case DRAW_ALL_EVENT: {
+			// TODO: draw_manager - ...
 			flip_locker flip_lock(CVideo::get_singleton());
 
 			/* Iterate backwards as the most recent things will be at the top */
@@ -781,51 +783,53 @@ void raise_resize_event()
 
 void raise_draw_event()
 {
-	if(event_contexts.empty() == false) {
-		event_contexts.back().add_staging_handlers();
-
-		// Events may cause more event handlers to be added and/or removed,
-		// so we must use indexes instead of iterators here.
-		for(auto handler : event_contexts.back().handlers) {
-			handler->draw();
-		}
-	}
+	//std::cerr << "draw event raised" << std::endl;
+	gui2::draw_manager::sparkle();
 }
 
 void raise_draw_all_event()
 {
-	for(auto& context : event_contexts) {
-		for(auto handler : context.handlers) {
-			handler->draw();
-		}
-	}
+	std::cerr << "draw all event raised" << std::endl;
+	gui2::draw_manager::sparkle();
 }
 
 void raise_volatile_draw_event()
 {
+	std::cerr << "volatile draw event" << std::endl;
+	// TODO: draw_manager - should this even do anything? why does it exist?
+	/*
 	if(event_contexts.empty() == false) {
 		for(auto handler : event_contexts.back().handlers) {
 			handler->volatile_draw();
 		}
 	}
+	*/
 }
 
 void raise_volatile_draw_all_event()
 {
+	std::cerr << "volatile draw all event" << std::endl;
+	// TODO: draw_manager - should this even do anything? why does it exist?
+	/*
 	for(auto& context : event_contexts) {
 		for(auto handler : context.handlers) {
 			handler->volatile_draw();
 		}
 	}
+	*/
 }
 
 void raise_volatile_undraw_event()
 {
+	std::cerr << "volatile undraw event" << std::endl;
+	// TODO: draw_manager - should this even do anything? why does it exist?
+	/*
 	if(event_contexts.empty() == false) {
 		for(auto handler : event_contexts.back().handlers) {
 			handler->volatile_undraw();
 		}
 	}
+	*/
 }
 
 void raise_help_string_event(int mousex, int mousey)

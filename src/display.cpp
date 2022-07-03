@@ -29,6 +29,7 @@
 #include "font/text.hpp"
 #include "preferences/game.hpp"
 #include "gettext.hpp"
+#include "gui/core/draw_manager.hpp"
 #include "gui/dialogs/loading_screen.hpp"
 #include "halo.hpp"
 #include "hotkey/command_executor.hpp"
@@ -255,6 +256,13 @@ display::display(const display_context* dc,
 	{
 		screen_.lock_updates(true);
 	}
+
+	// Currently a game display manages its own invalidation by hex.
+	// This does not mix well with the draw manager which uses rectangles.
+	// The game display will do all its own invalidation and draw handling,
+	// so add a static animation target so the draw manager will poke it
+	// every so often.
+	gui2::draw_manager::register_static_animation(this, rect());
 
 	fill_images_list(game_config::fog_prefix, fog_images_);
 	fill_images_list(game_config::shroud_prefix, shroud_images_);
@@ -1338,6 +1346,10 @@ void display::flip()
 		return;
 	}
 
+	// TODO: draw_manager - remove this function
+	return;
+
+	// TODO: draw_manager - draw these somewhere more appropriate
 	font::draw_floating_labels();
 	events::raise_volatile_draw_event();
 
@@ -1653,27 +1665,13 @@ void display::draw_init()
 		invalidateAll_ = true;
 	}
 
-	if(!panelsDrawn_) {
-		draw_all_panels();
-		panelsDrawn_ = true;
-	}
-
 	if(redraw_background_) {
-		// Full redraw of the background
-		const SDL_Rect clip_rect = map_outside_area();
-		draw::fill(clip_rect, 0, 0, 0);
-		draw::tiled(
-			image::get_texture(theme_.border().background_image),
-			clip_rect
-		);
-		redraw_background_ = false;
-
-		// Force a full map redraw
 		invalidateAll_ = true;
 	}
 
 	if(invalidateAll_) {
 		DBG_DP << "draw() with invalidateAll\n";
+		std::cerr << "invalidating all" << std::endl;
 
 		// toggle invalidateAll_ first to allow regular invalidations
 		invalidateAll_ = false;
@@ -1688,11 +1686,6 @@ void display::draw_wrap(bool update, bool force)
 	static int time_between_draws = preferences::draw_delay();
 	if(time_between_draws < 0) {
 		time_between_draws = 1000 / screen_.current_refresh_rate();
-	}
-
-	if(redrawMinimap_ && !map_screenshot_) {
-		redrawMinimap_ = false;
-		draw_minimap();
 	}
 
 	if(update) {
@@ -2447,28 +2440,48 @@ void display::draw(bool update, bool force)
 	//	log_scope("display::draw");
 
 	if(screen_.update_locked() || screen_.faked()) {
+		std::cerr << "display::draw denied" << std::endl;
+		// TODO: draw_manager - deny drawing in draw_manager if appropriate
 		return;
 	}
+	//std::cerr << "display::draw" << std::endl;
 
+	// TODO: draw_manager - make this check better / kill it
 	if(dirty_) {
+		std::cerr << "display::draw dirty redraw all" << std::endl;
+		// TODO: draw_manager - flip_locker is almost certainly unnecessary
 		flip_locker flip_lock(screen_);
 		dirty_ = false;
+		// TODO: draw_manager - remove this and integrate here
 		redraw_everything();
 		return;
 	}
 
-	// Trigger cache rebuild when preference gets changed
-	if(animate_water_ != preferences::animate_water()) {
-		animate_water_ = preferences::animate_water();
-		builder_->rebuild_cache_all();
-	}
-
+	// TODO: draw_manager - why on earth does this need to mess with sync context?
 	set_scontext_unsynced leave_synced_context;
 
-	draw_init();
+	// TODO: draw_manager - draw these according to need
+	if(!panelsDrawn_) {
+		std::cerr << "display::draw draw panels" << std::endl;
+		draw_all_panels();
+		panelsDrawn_ = true;
+	}
+
+	// TODO: draw_manager - redraw background more judiciously
+	if(redraw_background_) {
+		std::cerr << "display::draw redraw background" << std::endl;
+		// Full redraw of the background
+		const SDL_Rect clip_rect = map_outside_area();
+		draw::fill(clip_rect, 0, 0, 0);
+		draw::tiled(
+			image::get_texture(theme_.border().background_image),
+			clip_rect
+		);
+		redraw_background_ = false;
+	}
+
+	// TODO: draw_manager - this should probably move, depending on usage
 	pre_draw();
-	// invalidate animated terrain, units and haloes
-	invalidate_animations();
 
 	if(!get_map().empty()) {
 		if(!invalidated_.empty()) {
@@ -2481,20 +2494,45 @@ void display::draw(bool update, bool force)
 			draw_sidebar();
 		}
 	}
+
+	// TODO: draw_manager - is this ordered correctly?
+	if(redrawMinimap_ && !map_screenshot_) {
+		std::cerr << "display::draw redrawing minimap" << std::endl;
+		redrawMinimap_ = false;
+		draw_minimap();
+	}
+
+	// TODO: draw_manager - what even is this for
 	draw_wrap(update, force);
+
+	// TODO: draw_manager - event hooks rather than this, maybe?
 	post_draw();
 }
 
 void display::layout()
 {
-	// TODO
+	//std::cerr << "display::layout" << std::endl;
+	// TODO: draw_manager - the layout part of this, perhaps
+
+	// TODO: draw_manager - should this just be inlined here?
+	draw_init();
+
+	// Trigger cache rebuild when preference gets changed
+	if(animate_water_ != preferences::animate_water()) {
+		animate_water_ = preferences::animate_water();
+		builder_->rebuild_cache_all();
+	}
+
+	// invalidate animated terrain, units and haloes
+	invalidate_animations();
 }
 
 bool display::expose(const SDL_Rect& region)
 {
-	(void)region; // TODO
+	//std::cerr << "display::expose " << region << std::endl;
+	invalidate_locations_in_rect(region);
 	draw();
-	return true; // also TODO
+	return true; // TODO: draw_manager - this
 }
 
 rect display::screen_location()
@@ -3027,8 +3065,11 @@ bool display::invalidate_locations_in_rect(const SDL_Rect& rect)
 	if(invalidateAll_)
 		return false;
 
+	//std::cerr << "invalidating locations in " << rect << std::endl;
+
 	bool result = false;
 	for(const map_location& loc : hexes_under_rect(rect)) {
+		std::cerr << "invalidating " << loc.x << ',' << loc.y << std::endl;
 		result |= invalidate(loc);
 	}
 	return result;
@@ -3047,6 +3088,7 @@ void display::invalidate_animations_location(const map_location& loc)
 
 void display::invalidate_animations()
 {
+	// TODO: draw_manager - WTF... how does this timing even work?
 	new_animation_frame();
 	animate_map_ = preferences::animate_map();
 	if(animate_map_) {
@@ -3079,7 +3121,8 @@ void display::invalidate_animations()
 		}
 	} while(new_inval);
 
-	halo_man_->unrender(invalidated_);
+	// TODO: draw_manager - cleanly remove this
+	//halo_man_->unrender(invalidated_);
 }
 
 void display::reset_standing_animations()
@@ -3196,6 +3239,7 @@ void display::handle_event(const SDL_Event& event)
 		return;
 	}
 	if(event.type == DRAW_ALL_EVENT) {
+		std::cerr << "DRAW ALL EVENT" << std::endl;
 		draw();
 	}
 }

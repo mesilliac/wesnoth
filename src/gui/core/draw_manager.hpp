@@ -31,6 +31,19 @@ namespace draw_manager
  */
 void invalidate_region(const rect& region);
 
+/**
+ * Ensure that everything which needs to be drawn is drawn.
+ *
+ * This includes making sure window sizes and locations are up to date,
+ * updating animation frames, and drawing whatever regions of the screen
+ * need drawing or redrawing.
+ *
+ * If vsync is enabled, this function will block until the next vblank.
+ * If nothing is drawn, it will still block for an appropriate amount of
+ * time to simulate vsync.
+ */
+void sparkle();
+
 /** Ensure layout is up-to-date for all TLDs. */
 void layout();
 

@@ -17,9 +17,13 @@
 #include "exceptions.hpp"
 #include "log.hpp"
 #include "gui/core/top_level_drawable.hpp"
+#include "preferences/general.hpp"
 #include "sdl/rect.hpp"
+#include "video.hpp"
 
 #include <SDL2/SDL_rect.h>
+#include <SDL2/SDL_timer.h>
+
 #include <vector>
 #include <map>
 #include <iostream>
@@ -29,6 +33,7 @@ std::vector<gui2::top_level_drawable*> top_level_drawables_;
 std::map<gui2::top_level_drawable*, std::vector<SDL_Rect>> animations_;
 std::vector<rect> invalidated_regions_;
 bool drawing_ = false;
+uint32_t last_sparkle_ = 0;
 } // namespace
 
 namespace gui2::draw_manager {
@@ -38,12 +43,15 @@ void invalidate_region(const rect& region)
 	if (drawing_) {
 		ERR_GUI_D << "Attempted to invalidate region " << region
 			<< " during draw" << std::endl;
+		return;
 	}
+
 	for (auto& r : invalidated_regions_) {
 		if (r.contains(region)) {
 			// An existing invalidated region already contains it,
 			// no need to do anything in this case.
-			std::cerr << "no need to invalidate " << region << std::endl;
+			//std::cerr << "no need to invalidate " << region << std::endl;
+			std::cerr << '.';
 			return;
 		}
 		if (region.contains(r)) {
@@ -55,6 +63,7 @@ void invalidate_region(const rect& region)
 			return;
 		}
 	}
+
 	std::cerr << "invalidating region " << region << std::endl;
 	invalidated_regions_.push_back(region);
 	// For now we store all the invalidated regions separately.
@@ -62,6 +71,34 @@ void invalidate_region(const rect& region)
 	// This can be looked into if it becomes common to invalidate multiple
 	// regions per frame. This is unlikely for the moment, as map animation
 	// is still handled internally by the "display" class.
+}
+
+void sparkle()
+{
+	if (drawing_) {
+		ERR_GUI_D << "Draw recursion detected" << std::endl;
+		return;
+	}
+
+	draw_manager::layout();
+
+	if (draw_manager::draw()) {
+		CVideo::get_singleton().render_screen();
+	} else if (preferences::vsync()) { // TODO: draw_manager - does anyone ever really want this not to rate limit?
+		int rr = CVideo::get_singleton().current_refresh_rate();
+		if (rr <= 0) {
+			// make something up
+			rr = 50;
+		}
+		int vsync_delay = (1000 / rr) - 1;
+		int time_to_wait = last_sparkle_ + vsync_delay - SDL_GetTicks();
+		if (time_to_wait > 0) {
+			//std::cerr << "sparkle waiting for " << time_to_wait << "ms"
+			//	<< " out of " << vsync_delay << "ms" << std::endl;
+			SDL_Delay(std::min(time_to_wait, 1000));
+		}
+	}
+	last_sparkle_ = SDL_GetTicks();
 }
 
 void layout()

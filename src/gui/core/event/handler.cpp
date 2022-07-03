@@ -604,11 +604,7 @@ void sdl_event_handler::draw()
 	}
 	*/
 
-	draw_manager::layout();
-
-	if(draw_manager::draw()) {
-		CVideo::get_singleton().render_screen();
-	}
+	draw_manager::sparkle();
 }
 
 void sdl_event_handler::draw_everything()

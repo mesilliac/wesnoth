@@ -591,8 +591,9 @@ int window::show(const bool restore, const unsigned auto_close_timeout)
 
 		// restore area
 		if(restore_) {
-			draw::blit(restorer_, get_rectangle());
-			font::undraw_floating_labels();
+			queue_redraw();
+			//draw::blit(restorer_, get_rectangle());
+			//font::undraw_floating_labels();
 		}
 		throw;
 	}
@@ -601,8 +602,9 @@ int window::show(const bool restore, const unsigned auto_close_timeout)
 
 	// restore area
 	if(restore_) {
-		draw::blit(restorer_, get_rectangle());
-		font::undraw_floating_labels();
+		queue_redraw();
+		//draw::blit(restorer_, get_rectangle());
+		//font::undraw_floating_labels();
 	}
 
 	if(text_box_base* tb = dynamic_cast<text_box_base*>(event_distributor_->keyboard_focus())) {
@@ -640,7 +642,9 @@ void window::draw()
 
 void window::undraw()
 {
+	std::cerr << "attempt undraw" << std::endl;
 	if(restore_ && restorer_) {
+		std::cerr << "ACTUALLY UNDRAW" << std::endl;
 		draw::blit(restorer_, get_rectangle());
 	}
 }
