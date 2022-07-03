@@ -2371,6 +2371,8 @@ void display::redraw_everything()
 	if(screen_.update_locked())
 		return;
 
+	std::cerr << "redrawing everything" << std::endl;
+
 	invalidateGameStatus_ = true;
 
 	reportRects_.clear();
@@ -2480,9 +2482,6 @@ void display::draw(bool update, bool force)
 		redraw_background_ = false;
 	}
 
-	// TODO: draw_manager - this should probably move, depending on usage
-	pre_draw();
-
 	if(!get_map().empty()) {
 		if(!invalidated_.empty()) {
 			draw_invalidated();
@@ -2497,7 +2496,7 @@ void display::draw(bool update, bool force)
 
 	// TODO: draw_manager - is this ordered correctly?
 	if(redrawMinimap_ && !map_screenshot_) {
-		std::cerr << "display::draw redrawing minimap" << std::endl;
+		//std::cerr << "display::draw redrawing minimap" << std::endl;
 		redrawMinimap_ = false;
 		draw_minimap();
 	}
@@ -2507,12 +2506,16 @@ void display::draw(bool update, bool force)
 
 	// TODO: draw_manager - event hooks rather than this, maybe?
 	post_draw();
+	//std::cerr << "display::draw done" << std::endl;
 }
 
 void display::layout()
 {
 	//std::cerr << "display::layout" << std::endl;
 	// TODO: draw_manager - the layout part of this, perhaps
+
+	// TODO: draw_manager - check usage of this and maybe delete, move or rename
+	pre_draw();
 
 	// TODO: draw_manager - should this just be inlined here?
 	draw_init();
@@ -2560,6 +2563,8 @@ void display::draw_invalidated() {
 //	log_scope("display::draw_invalidated");
 	SDL_Rect clip_rect = get_clip_rect();
 	auto clipper = draw::set_clip(clip_rect);
+	std::cerr << "drawing " << invalidated_.size()
+		<< " invalidated hexes" << std::endl;
 	for (const map_location& loc : invalidated_) {
 		int xpos = get_location_x(loc);
 		int ypos = get_location_y(loc);
@@ -3069,7 +3074,7 @@ bool display::invalidate_locations_in_rect(const SDL_Rect& rect)
 
 	bool result = false;
 	for(const map_location& loc : hexes_under_rect(rect)) {
-		std::cerr << "invalidating " << loc.x << ',' << loc.y << std::endl;
+		//std::cerr << "invalidating " << loc.x << ',' << loc.y << std::endl;
 		result |= invalidate(loc);
 	}
 	return result;
@@ -3121,8 +3126,8 @@ void display::invalidate_animations()
 		}
 	} while(new_inval);
 
-	// TODO: draw_manager - cleanly remove this
-	//halo_man_->unrender(invalidated_);
+	// TODO: draw_manager - rename this. it doesn't actually unrender
+	halo_man_->unrender(invalidated_);
 }
 
 void display::reset_standing_animations()

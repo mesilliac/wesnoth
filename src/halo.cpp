@@ -23,6 +23,7 @@
 #include "display.hpp"
 #include "draw.hpp"
 #include "preferences/game.hpp"
+#include "gui/core/draw_manager.hpp"
 #include "halo.hpp"
 #include "log.hpp"
 #include "serialization/string_utils.hpp"
@@ -224,6 +225,7 @@ bool halo_impl::effect::render()
 	}
 
 	if(!clip_rect.overlaps(rect_)) {
+		std::cerr << "halo outside clip" << std::endl;
 		buffer_.reset();
 		return false;
 	}
@@ -231,7 +233,9 @@ bool halo_impl::effect::render()
 	auto clipper = draw::set_clip(clip_rect);
 
 	buffer_pos_ = rect_;
-	buffer_ = disp->video().read_texture(&buffer_pos_);
+	//buffer_ = disp->video().read_texture(&buffer_pos_);
+
+	std::cerr << "drawing halo at " << rect_ << std::endl;
 
 	if (orientation_ == NORMAL) {
 		draw::blit(tex_, rect_);
@@ -246,7 +250,8 @@ bool halo_impl::effect::render()
 
 void halo_impl::effect::unrender()
 {
-	if (!tex_ || !buffer_) {
+	// TODO: draw_manager - remove buffer_ texture
+	if (!tex_/* || !buffer_*/) {
 		return;
 	}
 
@@ -256,8 +261,11 @@ void halo_impl::effect::unrender()
 	// don't need to unrender them because shroud paints over the underlying
 	// area anyway.
 	if (loc_.x != -1 && loc_.y != -1 && disp->shrouded(loc_)) {
+		std::cerr << "shrouded or unpositioned halo" << std::endl;
+		// TODO: draw_manager - probably should redo this
 		return;
 	}
+
 
 	SDL_Rect clip_rect = disp->map_outside_area();
 	auto clipper = draw::set_clip(clip_rect);
@@ -273,7 +281,10 @@ void halo_impl::effect::unrender()
 	buffer_pos_.x += xpos - rect_.x;
 	buffer_pos_.y += ypos - rect_.y;
 
-	draw::blit(buffer_, buffer_pos_);
+	std::cerr << "invalidating halo" << buffer_pos_ << std::endl;
+
+	gui2::draw_manager::invalidate_region(buffer_pos_);
+	//draw::blit(buffer_, buffer_pos_);
 }
 
 bool halo_impl::effect::on_location(const std::set<map_location>& locations) const
@@ -356,7 +367,12 @@ void halo_impl::remove(int handle)
 void halo_impl::unrender(std::set<map_location> invalidated_locations)
 {
 	if(haloes.empty()) {
+		//std::cerr << "nothing to unrender" << std::endl;
 		return;
+	}
+	if (invalidated_locations.size()) {
+		std::cerr << "attempting to invalidate halos at "
+			<< invalidated_locations.size() << " locations" << std::endl;
 	}
 	//assert(invalidated_haloes.empty());
 

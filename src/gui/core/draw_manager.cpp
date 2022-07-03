@@ -51,7 +51,7 @@ void invalidate_region(const rect& region)
 			// An existing invalidated region already contains it,
 			// no need to do anything in this case.
 			//std::cerr << "no need to invalidate " << region << std::endl;
-			std::cerr << '.';
+			//std::cerr << '.';
 			return;
 		}
 		if (region.contains(r)) {
@@ -132,7 +132,7 @@ bool draw()
 	// Also expose animations, as necessary.
 	for (auto [tld, regions] : animations_) {
 		// very basic for now
-		std::cerr << "@";
+		//std::cerr << "@";
 		for (auto r : regions) {
 			drawn |= tld->expose(r);
 		}
