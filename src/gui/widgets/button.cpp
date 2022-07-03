@@ -64,7 +64,6 @@ void button::set_active(const bool active)
 {
 	if(get_active() != active) {
 		set_state(active ? ENABLED : DISABLED);
-		queue_redraw();
 	}
 }
 

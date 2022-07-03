@@ -567,8 +567,14 @@ public:
 
 	void draw(bool update, bool force);
 
+	/** Called by gui2::draw_manager to finalize screen layout. */
+	virtual void layout() override;
+
 	/** Called by gui2::draw_manager when it believes a redraw is necessary. */
-	bool expose(const SDL_Rect &region) override;
+	virtual bool expose(const SDL_Rect &region) override;
+
+	/** The current draw location of the display, on the screen. */
+	virtual rect screen_location() override;
 
 	map_labels& labels();
 	const map_labels& labels() const;

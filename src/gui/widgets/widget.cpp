@@ -473,16 +473,27 @@ void widget::set_visible_rectangle(const SDL_Rect& rectangle)
 
 void widget::set_is_dirty(const bool is_dirty)
 {
-	is_dirty_ = is_dirty;
+	if(is_dirty) {
+		queue_redraw();
+	}
+	//is_dirty_ = is_dirty;
+	// TODO: draw_manager - just replace this with queue_redraw calls
 }
 
 bool widget::get_is_dirty() const
 {
-	return is_dirty_;
+	return false;
+	//return is_dirty_;
+	// TODO: draw_manager - remove
 }
 
 void widget::queue_redraw()
 {
+	if (x_ < 0 || y_ < 0) {
+		// Do nothing if the widget hasn't yet been placed.
+		return;
+		// TODO: draw_manager - does this miss anything?
+	}
 	draw_manager::invalidate_region(get_rectangle());
 }
 

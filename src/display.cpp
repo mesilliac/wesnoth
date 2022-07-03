@@ -2485,11 +2485,22 @@ void display::draw(bool update, bool force)
 	post_draw();
 }
 
+void display::layout()
+{
+	// TODO
+}
+
 bool display::expose(const SDL_Rect& region)
 {
 	(void)region; // TODO
 	draw();
 	return true; // also TODO
+}
+
+rect display::screen_location()
+{
+	assert(!map_screenshot_);
+	return map_outside_area();
 }
 
 map_labels& display::labels()

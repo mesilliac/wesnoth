@@ -14,7 +14,7 @@
 
 #pragma once
 
-struct SDL_Rect;
+#include "sdl/rect.hpp"
 
 namespace gui2
 {
@@ -32,13 +32,35 @@ protected:
 	virtual ~top_level_drawable();
 public:
 	/**
+	 * Size and position the drawable and its children.
+	 *
+	 * If this results in a change, it should invalidate both the previous
+	 * and new drawable regions via draw_manager::invalidate_region().
+	 * If the drawable was not previously laid out, it should invalidate
+	 * the newly determined region.
+	 *
+	 * TLDs must not perform any actual drawing during layout.
+	 */
+	virtual void layout() = 0;
+
+	/**
 	 * Draw the portion of the drawable intersecting @p region to the screen.
+	 *
+	 * TLDs must not invalidate regions during expose. Only drawing must
+	 * occur, with no modification of layout.
 	 *
 	 * @param region    The region to expose, in absolute draw-space
 	 *                  coordinates.
 	 * @returns         True if anything was drawn, false otherwise.
 	 */
 	virtual bool expose(const SDL_Rect& region) = 0;
+
+	/**
+	 * The location of the TLD on the screen, in drawing coordinates.
+	 *
+	 * This will be used to determine the region (if any) to expose.
+	 */
+	virtual rect screen_location() = 0;
 };
 
 } // namespace gui2

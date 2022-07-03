@@ -167,8 +167,23 @@ public:
 		dirty_list_.push_back(call_stack);
 	}
 
+	/**
+	 * Lays out the window.
+	 *
+	 * This part does the pre and post processing for the actual layout
+	 * algorithm.
+	 *
+	 * See @ref layout_algorithm for more information.
+	 *
+	 * This is also called by gui2::draw_manaer to finalize screen layout.
+	 */
+	virtual void layout() override;
+
 	/** Called by gui2::draw_manager when it believes a redraw is necessary. */
 	virtual bool expose(const SDL_Rect &region) override;
+
+	/** The current draw location of the window, on the screen. */
+	virtual rect screen_location() override;
 
 	/** The status of the window. */
 	enum class status {
@@ -591,16 +606,6 @@ private:
 
 	/** List of widgets in the tabbing order. */
 	std::vector<widget*> tab_order;
-
-	/**
-	 * Layouts the window.
-	 *
-	 * This part does the pre and post processing for the actual layout
-	 * algorithm.
-	 *
-	 * See @ref layout_algorithm for more information.
-	 */
-	void layout();
 
 	/**
 	 * Layouts the linked widgets.

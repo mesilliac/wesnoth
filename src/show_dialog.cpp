@@ -386,12 +386,23 @@ void dialog_frame::draw()
 	dirty_ = false;
 }
 
+void dialog_frame::layout()
+{
+	// I am not actually sure where this happens,
+	// but it doesn't seem to be in draw so that's okay.
+}
+
 bool dialog_frame::expose(const SDL_Rect& region)
 {
 	(void)region; // TODO
 	dirty_ = true;
 	draw();
 	return true; // also TODO
+}
+
+rect dialog_frame::screen_location()
+{
+	return dim_.exterior;
 }
 
 }

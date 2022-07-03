@@ -14,7 +14,7 @@
 
 #pragma once
 
-struct SDL_Rect;
+#include "sdl/rect.hpp"
 
 namespace gui2
 {
@@ -29,7 +29,10 @@ namespace draw_manager
  * This should be called any time an item changes in such a way as to
  * require redrawing.
  */
-void invalidate_region(const SDL_Rect& region);
+void invalidate_region(const rect& region);
+
+/** Ensure layout is up-to-date for all TLDs. */
+void layout();
 
 /** Draw all invalidated regions. Returns false if nothing was drawn. */
 bool draw();

@@ -179,9 +179,9 @@ void loading_screen::process(events::pump_info&)
 	}
 }
 
-bool loading_screen::expose(const SDL_Rect& region)
+void loading_screen::layout()
 {
-	DBG_DP << "loading_screen::expose " << region << std::endl;
+	DBG_DP << "loading_screen::layout" << std::endl;
 
 	loading_stage stage = current_stage_.load(std::memory_order_acquire);
 
@@ -189,9 +189,10 @@ bool loading_screen::expose(const SDL_Rect& region)
 		auto iter = visible_stages_.find(stage);
 		if(iter == visible_stages_.end()) {
 			WRN_LS << "Stage missing description." << std::endl;
-			return false;
+			return;
 		}
 
+		std::cerr << "updating ls layout" << std::endl;
 		current_visible_stage_ = iter;
 		progress_stage_label_->set_label(iter->second);
 	}
@@ -206,8 +207,17 @@ bool loading_screen::expose(const SDL_Rect& region)
 
 	animation_->get_drawing_canvas().set_variable("time", wfl::variant(duration_cast<milliseconds>(now - *animation_start_).count()));
 	animation_->set_is_dirty(true);
+}
 
+bool loading_screen::expose(const SDL_Rect& region)
+{
+	DBG_DP << "loading_screen::expose " << region << std::endl;
 	return get_window()->expose(region);
+}
+
+rect loading_screen::screen_location()
+{
+	return get_window()->screen_location();
 }
 
 loading_screen::~loading_screen()

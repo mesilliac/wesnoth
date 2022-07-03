@@ -14,6 +14,8 @@
 
 #include "gui/core/draw_manager.hpp"
 
+#include "exceptions.hpp"
+#include "log.hpp"
 #include "gui/core/top_level_drawable.hpp"
 #include "sdl/rect.hpp"
 
@@ -25,13 +27,34 @@
 namespace {
 std::vector<gui2::top_level_drawable*> top_level_drawables_;
 std::map<gui2::top_level_drawable*, std::vector<SDL_Rect>> animations_;
-std::vector<SDL_Rect> invalidated_regions_;
+std::vector<rect> invalidated_regions_;
+bool drawing_ = false;
 } // namespace
 
 namespace gui2::draw_manager {
 
-void invalidate_region(const SDL_Rect& region)
+void invalidate_region(const rect& region)
 {
+	if (drawing_) {
+		ERR_GUI_D << "Attempted to invalidate region " << region
+			<< " during draw" << std::endl;
+	}
+	for (auto& r : invalidated_regions_) {
+		if (r.contains(region)) {
+			// An existing invalidated region already contains it,
+			// no need to do anything in this case.
+			std::cerr << "no need to invalidate " << region << std::endl;
+			return;
+		}
+		if (region.contains(r)) {
+			// This region contains a previously invalidated region,
+			// might as well superceded it with this.
+			std::cerr << "superceding previous invalidation " << r
+				<< " with " << region << std::endl;
+			r = region;
+			return;
+		}
+	}
 	std::cerr << "invalidating region " << region << std::endl;
 	invalidated_regions_.push_back(region);
 	// For now we store all the invalidated regions separately.
@@ -41,18 +64,32 @@ void invalidate_region(const SDL_Rect& region)
 	// is still handled internally by the "display" class.
 }
 
+void layout()
+{
+	for (auto tld : top_level_drawables_) {
+		tld->layout();
+	}
+}
+
 bool draw()
 {
+	// TODO: draw_manager - some things were skipping draw when video is faked. Should this skip all in this case?
+	drawing_ = true;
 	//std::cerr << ".";
 	// For now just send all regions to all TLDs in the correct order.
 	bool drawn = false;
 	while (!invalidated_regions_.empty()) {
 		std::cerr << "+";
-		SDL_Rect r = invalidated_regions_.back();
+		rect r = invalidated_regions_.back();
 		invalidated_regions_.pop_back();
 		for (auto tld : top_level_drawables_) {
+			rect i = r.intersect(tld->screen_location());
+			if (i.empty()) {
+				std::cerr << "x";
+				continue;
+			}
 			std::cerr << "*";
-			drawn |= tld->expose(r);
+			drawn |= tld->expose(i);
 		}
 	}
 	// Also expose animations, as necessary.
@@ -63,6 +100,7 @@ bool draw()
 			drawn |= tld->expose(r);
 		}
 	}
+	drawing_ = false;
 	return drawn;
 }
 
