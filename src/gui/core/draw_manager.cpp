@@ -38,6 +38,8 @@ uint32_t last_sparkle_ = 0;
 
 namespace gui2::draw_manager {
 
+void render();
+
 void invalidate_region(const rect& region)
 {
 	if (drawing_) {
@@ -82,6 +84,8 @@ void sparkle()
 
 	draw_manager::layout();
 
+	draw_manager::render();
+
 	if (draw_manager::draw()) {
 		CVideo::get_singleton().render_screen();
 	} else if (preferences::vsync()) { // TODO: draw_manager - does anyone ever really want this not to rate limit?
@@ -108,6 +112,13 @@ void layout()
 	}
 }
 
+void render()
+{
+	for (auto tld : top_level_drawables_) {
+		tld->render();
+	}
+}
+
 bool draw()
 {
 	// TODO: draw_manager - some things were skipping draw when video is faked. Should this skip all in this case?
@@ -129,11 +140,12 @@ bool draw()
 			drawn |= tld->expose(i);
 		}
 	}
+	// TODO: draw_manager - replace or overhaul this
 	// Also expose animations, as necessary.
-	for (auto [tld, regions] : animations_) {
+	for (auto& [tld, regions] : animations_) {
 		// very basic for now
 		//std::cerr << "@";
-		for (auto r : regions) {
+		for (auto& r : regions) {
 			drawn |= tld->expose(r);
 		}
 	}

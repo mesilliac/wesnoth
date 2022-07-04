@@ -570,12 +570,25 @@ public:
 	/** Called by gui2::draw_manager to finalize screen layout. */
 	virtual void layout() override;
 
+	/** Called by gui2::draw_manager to update offscreen render buffers. */
+	virtual void render() override;
+
 	/** Called by gui2::draw_manager when it believes a redraw is necessary. */
 	virtual bool expose(const SDL_Rect &region) override;
 
 	/** The current draw location of the display, on the screen. */
 	virtual rect screen_location() override;
 
+private:
+	/** Render textures, for intermediate rendering. */
+	texture render_buffers_[2] = {};
+	int front_ = 0;
+	int back_ = 1;
+
+	/** Ensure render textures are valid and correct. */
+	void update_render_textures();
+
+public:
 	map_labels& labels();
 	const map_labels& labels() const;
 

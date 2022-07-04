@@ -40,14 +40,30 @@ public:
 	 * the newly determined region.
 	 *
 	 * TLDs must not perform any actual drawing during layout.
+	 *
+	 * Implementation of this interface is mandatory.
 	 */
 	virtual void layout() = 0;
+
+	/**
+	 * Perform any internal rendering necessary to prepare the drawable.
+	 *
+	 * For example if the drawable has an offscreen buffer it manages,
+	 * it should ensure this buffer is up to date.
+	 *
+	 * TLDs should invalidate any visibly changed regions during this call.
+	 *
+	 * This interface is optional.
+	 */
+	virtual void render() {}
 
 	/**
 	 * Draw the portion of the drawable intersecting @p region to the screen.
 	 *
 	 * TLDs must not invalidate regions during expose. Only drawing must
 	 * occur, with no modification of layout.
+	 *
+	 * Implementation of this interface is mandatory.
 	 *
 	 * @param region    The region to expose, in absolute draw-space
 	 *                  coordinates.
@@ -59,6 +75,8 @@ public:
 	 * The location of the TLD on the screen, in drawing coordinates.
 	 *
 	 * This will be used to determine the region (if any) to expose.
+	 *
+	 * Implementation of this interface is mandatory.
 	 */
 	virtual rect screen_location() = 0;
 };

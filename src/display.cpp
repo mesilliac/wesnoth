@@ -2511,6 +2511,9 @@ void display::draw(bool update, bool force)
 
 void display::layout()
 {
+	// Ensure render textures are correctly sized and up-to-date
+	update_render_textures(); // TODO
+
 	//std::cerr << "display::layout" << std::endl;
 	// TODO: draw_manager - the layout part of this, perhaps
 
@@ -2530,12 +2533,31 @@ void display::layout()
 	invalidate_animations();
 }
 
+void display::render()
+{
+	// This should render the game map and units.
+	// It is not responsible for halos and floating labels.
+	// TODO: draw_manager - panels go where
+	//std::cerr << "display::render" << std::endl;
+	auto target_setter = draw::set_render_target(render_buffers_[front_]);
+	// TODO: draw_manager - separate halos and floating labels
+	// TODO: draw_manager - pull floating labels out of font::
+	draw();
+}
+
 bool display::expose(const SDL_Rect& region)
 {
-	//std::cerr << "display::expose " << region << std::endl;
-	invalidate_locations_in_rect(region);
-	auto clipper = draw::set_clip(region);
-	draw();
+	if (region == sdl::empty_rect) { return false; } // TODO temp
+	std::cerr << "display::expose " << region << std::endl;
+	//invalidate_locations_in_rect(region);
+	//auto clipper = draw::set_clip(region);
+	// TODO: draw_manager - API to get src region in output space
+	rect src_region = region;
+	src_region *= video().get_pixel_scale();
+	//std::cerr << "  src region " << src_region << std::endl;
+	//draw::blit(render_buffers_[front_], region);
+	draw::blit(render_buffers_[front_], region, src_region);
+	//draw();
 	return true; // TODO: draw_manager - this
 }
 
@@ -2543,6 +2565,32 @@ rect display::screen_location()
 {
 	assert(!map_screenshot_);
 	return map_outside_area();
+}
+
+void display::update_render_textures()
+{
+	// TODO: draw_manager - tidy these video accessors
+	rect darea = video().draw_area();
+	rect oarea = darea * video().get_pixel_scale();
+
+	// Check that the front buffer size is correct.
+	// Buffers are always resized together, so we only need to check one.
+	texture& front = render_buffers_[front_];
+	point size = front.get_raw_size();
+	if (size.x == oarea.w && size.y == oarea.h) {
+		// buffers are fine
+		return;
+	}
+
+	// For now, just clobber and regenerate both textures.
+	std::cerr << "updating display render buffers to " << oarea << std::endl;
+	texture& back = render_buffers_[back_];
+	front = texture(oarea.w, oarea.h, SDL_TEXTUREACCESS_TARGET);
+	front.set_draw_size(darea.w, darea.h);
+	back = texture(oarea.w, oarea.h, SDL_TEXTUREACCESS_TARGET);
+	back.set_draw_size(darea.w, darea.h);
+	// TODO: draw_manager - this is gross
+	dirty_ = true;
 }
 
 map_labels& display::labels()
@@ -2566,6 +2614,7 @@ void display::draw_invalidated() {
 	auto clipper = draw::set_clip(clip_rect);
 	std::cerr << "drawing " << invalidated_.size()
 		<< " invalidated hexes" << std::endl;
+	std::cerr << " with clip " << clip_rect << std::endl;
 	for (const map_location& loc : invalidated_) {
 		int xpos = get_location_x(loc);
 		int ypos = get_location_y(loc);
@@ -2577,6 +2626,7 @@ void display::draw_invalidated() {
 		}
 		draw_hex(loc);
 		drawn_hexes_+=1;
+		gui2::draw_manager::invalidate_region(hex_rect.intersect(clip_rect));
 	}
 	invalidated_hexes_ += invalidated_.size();
 
