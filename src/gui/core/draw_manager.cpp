@@ -150,15 +150,11 @@ void register_drawable(gui2::top_level_drawable* tld)
 void unregister_drawable(gui2::top_level_drawable* tld)
 {
 	std::cerr << "deregistering TLD " << static_cast<void*>(tld) << std::endl;
-	for (auto it = top_level_drawables_.begin();
-		it != top_level_drawables_.end();
-		++it)
-	{
-		if (*it == tld) {
-			top_level_drawables_.erase(it);
-			return;
-		}
-	}
+	// Erase tld from top_level_drawables
+	auto& vec = top_level_drawables_;
+	vec.erase(std::remove(vec.begin(), vec.end(), tld), vec.end());
+
+	// Remove any linked animations
 	animations_.erase(tld);
 }
 

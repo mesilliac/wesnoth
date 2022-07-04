@@ -2534,6 +2534,7 @@ bool display::expose(const SDL_Rect& region)
 {
 	//std::cerr << "display::expose " << region << std::endl;
 	invalidate_locations_in_rect(region);
+	auto clipper = draw::set_clip(region);
 	draw();
 	return true; // TODO: draw_manager - this
 }

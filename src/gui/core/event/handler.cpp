@@ -564,13 +564,8 @@ void sdl_event_handler::disconnect(dispatcher* disp)
 		keyboard_focus_ = nullptr;
 	}
 
-	/***** Set proper state for the other dispatchers. *****/
-	for(auto d : dispatchers_)
-	{
-		dynamic_cast<widget&>(*d).set_is_dirty(true);
-	}
-
-	activate();
+	// TODO: draw_manager - Why TF was this "activate"ing on "disconnect"? Seriously WTF?
+	//activate();
 
 	/***** Validate post conditions. *****/
 	assert(std::find(dispatchers_.begin(), dispatchers_.end(), disp)
@@ -609,10 +604,8 @@ void sdl_event_handler::draw()
 
 void sdl_event_handler::draw_everything()
 {
-	for(auto dispatcher : dispatchers_) {
-		dynamic_cast<widget&>(*dispatcher).set_is_dirty(true);
-	}
-
+	std::cerr << "sdl_event_handler::draw_everything" << std::endl;
+	draw_manager::invalidate_region(CVideo::get_singleton().draw_area());
 	draw();
 }
 

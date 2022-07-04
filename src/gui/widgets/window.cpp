@@ -473,6 +473,7 @@ void window::show_tooltip(/*const unsigned auto_close_timeout*/)
 	suspend_drawing_ = false;
 	layout();
 	queue_redraw();
+	std::cerr << "show tooltip queued to " << get_rectangle() << std::endl;
 }
 
 void window::show_non_modal(/*const unsigned auto_close_timeout*/)
@@ -496,6 +497,8 @@ void window::show_non_modal(/*const unsigned auto_close_timeout*/)
 	suspend_drawing_ = false;
 	layout();
 	queue_redraw();
+
+	std::cerr << "show non-modal queued to " << get_rectangle() << std::endl;
 
 	push_draw_event();
 
@@ -548,6 +551,7 @@ int window::show(const bool restore, const unsigned auto_close_timeout)
 		// Start our loop drawing will happen here as well.
 		bool mouse_button_state_initialized = false;
 		for(status_ = status::SHOWING; status_ != status::CLOSED;) {
+			// TODO: draw_manager - sort out this mess of calls
 			push_draw_event();
 
 			// process installed callback if valid, to allow e.g. network
@@ -643,6 +647,10 @@ void window::draw()
 void window::undraw()
 {
 	std::cerr << "attempt undraw" << std::endl;
+	// TODO: draw_manager - is suspend_drawing_ necessary?
+	suspend_drawing_ = true;
+	queue_redraw();
+	// TODO: draw_manager - remove restorer
 	if(restore_ && restorer_) {
 		std::cerr << "ACTUALLY UNDRAW" << std::endl;
 		draw::blit(restorer_, get_rectangle());
@@ -656,7 +664,8 @@ bool window::expose(const SDL_Rect& region)
 	if (i.empty()) {
 		return false;
 	}
-	draw(); // TODO: region
+	auto clipper = draw::set_clip(i);
+	draw(); // TODO: ensure drawing respects clip region
 	return true;
 }
 

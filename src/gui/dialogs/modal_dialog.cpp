@@ -57,6 +57,7 @@ namespace {
 bool modal_dialog::show(const unsigned auto_close_time)
 {
 	if(CVideo::get_singleton().faked() && !show_even_without_video_) {
+		std::cerr << "modal_dialog::show denied" << std::endl;
 		if(!allow_plugin_skip_) {
 			return false;
 		}
@@ -73,6 +74,8 @@ bool modal_dialog::show(const unsigned auto_close_time)
 		return false;
 	}
 
+	std::cerr << "modal_dialog::show" << std::endl;
+
 	window_ = build_window();
 	assert(window_.get());
 
@@ -87,6 +90,7 @@ bool modal_dialog::show(const unsigned auto_close_time)
 	{ // Scope the window stack
 		cursor::setter cur{cursor::NORMAL};
 		window_stack_handler push_window_stack(window_);
+		std::cerr << "modal show" << std::endl;
 		retval_ = window_->show(restore_, auto_close_time);
 	}
 

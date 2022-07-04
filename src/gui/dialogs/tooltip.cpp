@@ -174,6 +174,7 @@ void show(const std::string& window_id,
 
 void remove()
 {
+	std::cerr << "hiding tooltip" << std::endl;
 	tip().hide();
 }
 

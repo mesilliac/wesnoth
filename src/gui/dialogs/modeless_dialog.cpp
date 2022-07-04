@@ -59,6 +59,7 @@ void modeless_dialog::hide()
 	if(window_) {
 		// Don't bother if show_mode_ == tooltip, because in that case we didn't add it anyway.
 		if(window_->mode() == window::show_mode::modeless) {
+			std::cerr << "removing from window stack" << std::endl;
 			remove_from_window_stack(window_.get());
 		}
 
