@@ -48,6 +48,8 @@ void invalidate_region(const rect& region)
 		return;
 	}
 
+	rect progressive_cover = region;
+	int64_t cumulative_area = 0;
 	for (auto& r : invalidated_regions_) {
 		if (r.contains(region)) {
 			// An existing invalidated region already contains it,
@@ -62,6 +64,26 @@ void invalidate_region(const rect& region)
 			std::cerr << "superceding previous invalidation " << r
 				<< " with " << region << std::endl;
 			r = region;
+			return;
+		}
+		// maybe merge with another rect
+		rect m = r.minimal_cover(region);
+		if (m.area() < r.area() + region.area()) {
+			// This won't always be the best,
+			// but it also won't ever be the worst.
+			std::cerr << "merging " << region << " with " << r
+				<< " to invalidate " << m << std::endl;
+			r = m;
+			return;
+		}
+		// maybe merge *all* the rects */
+		progressive_cover.expand_to_cover(r);
+		cumulative_area += r.area();
+		if (progressive_cover.area() < cumulative_area) {
+			std::cerr << "conglomerating invalidations to "
+				<< progressive_cover << std::endl;
+			// replace the first one, so we can easily prune later
+			invalidated_regions_[0] = progressive_cover;
 			return;
 		}
 	}
@@ -124,12 +146,26 @@ bool draw()
 	// TODO: draw_manager - some things were skipping draw when video is faked. Should this skip all in this case?
 	drawing_ = true;
 	//std::cerr << ".";
+
 	// For now just send all regions to all TLDs in the correct order.
 	bool drawn = false;
+next:
 	while (!invalidated_regions_.empty()) {
 		std::cerr << "+";
 		rect r = invalidated_regions_.back();
 		invalidated_regions_.pop_back();
+		// check if this will be superceded by or should be merged with another
+		for (auto& other : invalidated_regions_) {
+			// r will never contain other, due to construction
+			if (other.contains(r)) {
+				goto next;
+			}
+			rect m = other.minimal_cover(r);
+			if (m.area() < r.area() + other.area()) {
+				other = m;
+				goto next;
+			}
+		}
 		for (auto tld : top_level_drawables_) {
 			rect i = r.intersect(tld->screen_location());
 			if (i.empty()) {
