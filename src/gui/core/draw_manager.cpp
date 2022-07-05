@@ -61,34 +61,38 @@ void invalidate_region(const rect& region)
 		if (region.contains(r)) {
 			// This region contains a previously invalidated region,
 			// might as well superceded it with this.
-			std::cerr << "superceding previous invalidation " << r
-				<< " with " << region << std::endl;
+			//std::cerr << "superceding previous invalidation " << r
+			//	<< " with " << region << std::endl;
+			std::cerr << '\'';
 			r = region;
 			return;
 		}
 		// maybe merge with another rect
 		rect m = r.minimal_cover(region);
-		if (m.area() < r.area() + region.area()) {
+		if (m.area() <= r.area() + region.area()) {
 			// This won't always be the best,
 			// but it also won't ever be the worst.
-			std::cerr << "merging " << region << " with " << r
-				<< " to invalidate " << m << std::endl;
+			//std::cerr << "merging " << region << " with " << r
+			//	<< " to invalidate " << m << std::endl;
+			std::cerr << ':';
 			r = m;
 			return;
 		}
 		// maybe merge *all* the rects */
 		progressive_cover.expand_to_cover(r);
 		cumulative_area += r.area();
-		if (progressive_cover.area() < cumulative_area) {
-			std::cerr << "conglomerating invalidations to "
-				<< progressive_cover << std::endl;
+		if (progressive_cover.area() <= cumulative_area) {
+			//std::cerr << "conglomerating invalidations to "
+			//	<< progressive_cover << std::endl;
+			std::cerr << '%';
 			// replace the first one, so we can easily prune later
 			invalidated_regions_[0] = progressive_cover;
 			return;
 		}
 	}
 
-	std::cerr << "invalidating region " << region << std::endl;
+	//std::cerr << "invalidating region " << region << std::endl;
+	std::cerr << '.';
 	invalidated_regions_.push_back(region);
 	// For now we store all the invalidated regions separately.
 	// Several avenues for optimization exist, some rather straightforward.
@@ -127,6 +131,7 @@ void sparkle()
 	last_sparkle_ = SDL_GetTicks();
 }
 
+// TODO: draw_manager - rename to include animation, or split animation out
 void layout()
 {
 	for (auto tld : top_level_drawables_) {
@@ -134,6 +139,7 @@ void layout()
 	}
 }
 
+// TODO: draw_manager - do animations get invalidated here or in layout?
 void render()
 {
 	for (auto tld : top_level_drawables_) {
@@ -151,21 +157,23 @@ bool draw()
 	bool drawn = false;
 next:
 	while (!invalidated_regions_.empty()) {
-		std::cerr << "+";
 		rect r = invalidated_regions_.back();
 		invalidated_regions_.pop_back();
 		// check if this will be superceded by or should be merged with another
 		for (auto& other : invalidated_regions_) {
 			// r will never contain other, due to construction
 			if (other.contains(r)) {
+				std::cerr << "-";
 				goto next;
 			}
 			rect m = other.minimal_cover(r);
-			if (m.area() < r.area() + other.area()) {
+			if (m.area() <= r.area() + other.area()) {
 				other = m;
+				std::cerr << "=";
 				goto next;
 			}
 		}
+		std::cerr << "+";
 		for (auto tld : top_level_drawables_) {
 			rect i = r.intersect(tld->screen_location());
 			if (i.empty()) {

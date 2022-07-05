@@ -18,6 +18,7 @@
 #include "display.hpp"
 #include "draw.hpp"
 #include "font/text.hpp"
+#include "gui/core/draw_manager.hpp"
 #include "log.hpp"
 #include "sdl/utils.hpp"
 #include "video.hpp"
@@ -44,12 +45,14 @@ std::stack<std::set<int>> label_contexts;
 namespace font
 {
 floating_label::floating_label(const std::string& text, const surface& surf)
+// TODO: draw_manager - what is this
 #if 0
 	: img_(),
 #else
 	: tex_()
 	, buf_()
 	, buf_pos_()
+	, alpha_(0)
 #endif
 	, fadeout_(0)
 	, time_start_(0)
@@ -97,6 +100,7 @@ int floating_label::xpos(std::size_t width) const
 
 bool floating_label::create_texture()
 {
+	// TODO: highdpi - this really does not need the extra indent
 	if(tex_ == nullptr) {
 		DBG_FT << "creating floating label texture" << std::endl;
 		font::pango_text& text = font::get_text_renderer();
@@ -175,34 +179,57 @@ bool floating_label::create_texture()
 	return tex_ != nullptr;
 }
 
-void floating_label::draw(int time)
+void floating_label::update(int time)
+{
+	if(!create_texture()) {
+		return;
+	}
+
+	point new_pos = get_loc(time);
+	rect draw_rect = {new_pos.x, new_pos.y, tex_.w(), tex_.h()};
+
+	uint8_t new_alpha = get_alpha(time);
+
+	if(buf_pos_ == draw_rect && alpha_ == new_alpha) {
+		// nothing has changed
+		return;
+	}
+
+	gui2::draw_manager::invalidate_region(buf_pos_);
+
+	// TODO: draw_manager - rename from buf_pos_ to pos_ or loc_ or sth
+	buf_pos_ = draw_rect;
+	alpha_ = new_alpha;
+}
+
+void floating_label::draw()
 {
 	if(!visible_) {
-		buf_.reset();
+		//buf_.reset();
+		buf_pos_ = {};
 		return;
 	}
 
-	if (!create_texture()) {
+	if(buf_pos_.empty()) {
 		return;
 	}
 
-	SDL_Point pos = get_loc(time);
-	SDL_Rect draw_rect = {pos.x, pos.y, tex_.w(), tex_.h()};
-	buf_pos_ = draw_rect;
+	if(!create_texture()) {
+		return;
+	}
 
-	auto clipper = draw::set_clip(clip_rect_);
+	auto clipper = draw::reduce_clip(clip_rect_);
 
 	// Read buf_ back from the screen.
 	// buf_pos_ will be intersected with the drawing area,
 	// so might not match draw_rect after this.
-	CVideo& video = CVideo::get_singleton();
-	buf_ = video.read_texture(&buf_pos_);
+	//CVideo& video = CVideo::get_singleton();
+	//buf_ = video.read_texture(&buf_pos_);
 
-	// Fade the label out according to the time.
-	tex_.set_alpha_mod(get_alpha(time));
+	tex_.set_alpha_mod(alpha_);
 
 	// Apply the label texture to the screen.
-	draw::blit(tex_, draw_rect);
+	draw::blit(tex_, buf_pos_);
 }
 
 void floating_label::set_lifetime(int lifetime, int fadeout)
@@ -237,16 +264,6 @@ uint8_t floating_label::get_alpha(int time)
 		}
 	}
 	return 255;
-}
-
-void floating_label::undraw()
-{
-	if(buf_ == nullptr) {
-		return;
-	}
-
-	auto clipper = draw::set_clip(clip_rect_);
-	draw::blit(buf_, buf_pos_);
 }
 
 int add_floating_label(const floating_label& flabel)
@@ -342,20 +359,19 @@ void draw_floating_labels()
 	if(label_contexts.empty()) {
 		return;
 	}
-	int time = SDL_GetTicks();
 
 	const std::set<int>& context = label_contexts.top();
 
 	// draw the labels in the order they were added, so later added labels (likely to be tooltips)
 	// are displayed over earlier added labels.
-	for(label_map::iterator i = labels.begin(); i != labels.end(); ++i) {
-		if(context.count(i->first) > 0) {
-			i->second.draw(time);
+	for(auto& [id, label] : labels) {
+		if(context.count(id) > 0) {
+			label.draw();
 		}
 	}
 }
 
-void undraw_floating_labels()
+void update_floating_labels()
 {
 	if(label_contexts.empty()) {
 		return;
@@ -364,11 +380,9 @@ void undraw_floating_labels()
 
 	std::set<int>& context = label_contexts.top();
 
-	//undraw labels in reverse order, so that a LIFO process occurs, and the screen is restored
-	//into the exact state it started in.
-	for(label_map::reverse_iterator i = labels.rbegin(); i != labels.rend(); ++i) {
-		if(context.count(i->first) > 0) {
-			i->second.undraw();
+	for(auto& [id, label] : labels) {
+		if(context.count(id) > 0) {
+			label.update(time);
 		}
 	}
 

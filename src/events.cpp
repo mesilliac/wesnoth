@@ -795,41 +795,35 @@ void raise_draw_all_event()
 
 void raise_volatile_draw_event()
 {
-	std::cerr << "volatile draw event" << std::endl;
+	//std::cerr << "volatile draw event" << std::endl;
 	// TODO: draw_manager - should this even do anything? why does it exist?
-	/*
 	if(event_contexts.empty() == false) {
 		for(auto handler : event_contexts.back().handlers) {
 			handler->volatile_draw();
 		}
 	}
-	*/
 }
 
 void raise_volatile_draw_all_event()
 {
 	std::cerr << "volatile draw all event" << std::endl;
 	// TODO: draw_manager - should this even do anything? why does it exist?
-	/*
 	for(auto& context : event_contexts) {
 		for(auto handler : context.handlers) {
 			handler->volatile_draw();
 		}
 	}
-	*/
 }
 
 void raise_volatile_undraw_event()
 {
-	std::cerr << "volatile undraw event" << std::endl;
+	//std::cerr << "volatile undraw event" << std::endl;
 	// TODO: draw_manager - should this even do anything? why does it exist?
-	/*
 	if(event_contexts.empty() == false) {
 		for(auto handler : event_contexts.back().handlers) {
 			handler->volatile_undraw();
 		}
 	}
-	*/
 }
 
 void raise_help_string_event(int mousex, int mousey)

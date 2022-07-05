@@ -108,7 +108,7 @@ private:
 	void hide_override(bool value = true);
 
 	CVideo* video_;
-	std::vector< surface_restorer > restorer_;
+	std::vector<rect> restorer_;
 	rect rect_;
 	mutable bool needs_restore_; // Have we drawn ourselves, so that if moved, we need to restore the background?
 

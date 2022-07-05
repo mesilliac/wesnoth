@@ -15,13 +15,15 @@
 
 #define GETTEXT_DOMAIN "wesnoth-lib"
 
-#include "draw.hpp" // for set_clip
+#include "draw.hpp"
+#include "gui/core/draw_manager.hpp"
 #include "widgets/widget.hpp"
 #include "video.hpp"
 #include "sdl/rect.hpp"
 #include "tooltips.hpp"
 
 #include <cassert>
+#include <iostream>
 
 namespace {
 	const SDL_Rect EmptyRect {-1234,-1234,0,0};
@@ -65,11 +67,12 @@ bool widget::mouse_locked() const
 	return mouse_lock_ && !mouse_lock_local_;
 }
 
+// TODO: draw_manager - kill surface restorers
 void widget::bg_cancel()
 {
-	for(std::vector< surface_restorer >::iterator i = restorer_.begin(),
+	/*for(std::vector< surface_restorer >::iterator i = restorer_.begin(),
 	    i_end = restorer_.end(); i != i_end; ++i)
-		i->cancel();
+		i->cancel();*/
 	restorer_.clear();
 }
 
@@ -99,7 +102,7 @@ const SDL_Rect* widget::clip_rect() const
 
 void widget::bg_register(const SDL_Rect& rect)
 {
-	restorer_.emplace_back(&video(), rect);
+	restorer_.emplace_back(rect);
 }
 
 void widget::set_location(int x, int y)
@@ -234,30 +237,39 @@ void widget::set_id(const std::string& id)
 
 void widget::bg_update()
 {
-	for(std::vector< surface_restorer >::iterator i = restorer_.begin(),
+	/*for(std::vector< surface_restorer >::iterator i = restorer_.begin(),
 	    i_end = restorer_.end(); i != i_end; ++i)
-		i->update();
+		i->update();*/
 }
 
 void widget::bg_restore() const
 {
-	auto clipper = draw::set_clip(clip_ ? clip_rect_ : video().draw_area());
+	rect c = clip_ ? clip_rect_ : video().draw_area();
+	//auto clipper = draw::set_clip(clip_ ? clip_rect_ : video().draw_area());
 
 	if (needs_restore_) {
-		for(std::vector< surface_restorer >::const_iterator i = restorer_.begin(),
-		    i_end = restorer_.end(); i != i_end; ++i)
-			i->restore();
+		for(const rect& r : restorer_) {
+			gui2::draw_manager::invalidate_region(r.intersect(c));
+		}
+		/*for(std::vector< surface_restorer >::const_iterator i = restorer_.begin(),
+		    i_end = restorer_.end(); i != i_end; ++i) 
+			i->restore();*/
 		needs_restore_ = false;
 	}
 }
 
-void widget::bg_restore(const SDL_Rect& rect) const
+void widget::bg_restore(const SDL_Rect& where) const
 {
-	auto clipper = draw::set_clip(clip_ ? clip_rect_ : video().draw_area());
+	rect c = clip_ ? clip_rect_ : video().draw_area();
+	c.clip(where);
+	//auto clipper = draw::set_clip(clip_ ? clip_rect_ : video().draw_area());
 
-	for(std::vector< surface_restorer >::const_iterator i = restorer_.begin(),
+	for(const rect& r : restorer_) {
+		gui2::draw_manager::invalidate_region(r.intersect(c));
+	}
+	/*for(std::vector< surface_restorer >::const_iterator i = restorer_.begin(),
 	    i_end = restorer_.end(); i != i_end; ++i)
-		i->restore(rect);
+		i->restore(rect);*/
 }
 
 void widget::set_volatile(bool val)
@@ -275,7 +287,8 @@ void widget::draw()
 	bg_restore();
 
 	if (clip_) {
-		auto clipper = draw::set_clip(clip_rect_);
+		// TODO: draw_manager - reduce clip not set?
+		auto clipper = draw::reduce_clip(clip_rect_);
 		draw_contents();
 	} else {
 		draw_contents();
@@ -289,7 +302,8 @@ void widget::volatile_draw()
 	if (!volatile_ || state_ != DRAWN || hidden_override_)
 		return;
 	state_ = DIRTY;
-	bg_update();
+	std::cerr << "volatile widget draw" << std::endl;
+	//bg_update();
 	draw();
 }
 
@@ -297,6 +311,7 @@ void widget::volatile_undraw()
 {
 	if (!volatile_)
 		return;
+	std::cerr << "volatile widget undraw" << std::endl;
 	bg_restore();
 }
 

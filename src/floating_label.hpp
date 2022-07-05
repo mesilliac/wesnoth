@@ -16,6 +16,7 @@
 #pragma once
 
 #include "color.hpp"
+#include "sdl/rect.hpp"
 #include "sdl/surface.hpp"
 #include "sdl/texture.hpp"
 #include <string>
@@ -70,8 +71,8 @@ public:
 	void use_markup(bool b) {use_markup_ = b;}
 
 	void move(double xmove, double ymove);
-	void draw(int time);
-	void undraw();
+	void update(int time);
+	void draw();
 
 	/**
 	 * Ensure a texture for this floating label exists, creating one if needed.
@@ -98,8 +99,9 @@ private:
 	int xpos(std::size_t width) const;
 	SDL_Point get_loc(int time);
 	uint8_t get_alpha(int time);
-	texture tex_, buf_;
-	SDL_Rect buf_pos_;
+	texture tex_, buf_; // TODO: draw_manager - remove buf_
+	rect buf_pos_; // TODO: draw_manager - rename
+	uint8_t alpha_;
 	int fadeout_;
 	int time_start_;
 	std::string text_;
@@ -141,6 +143,6 @@ void show_floating_label(int handle, bool show);
 
 SDL_Rect get_floating_label_rect(int handle);
 void draw_floating_labels();
-void undraw_floating_labels();
+void update_floating_labels();
 
 } // end namespace font

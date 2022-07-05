@@ -960,13 +960,14 @@ void display::create_buttons()
 
 void display::render_buttons()
 {
+	// TODO: draw_manager - prune by rect?
 	for(auto& btn : menu_buttons_) {
-		btn->set_dirty(true);
+		//btn->set_dirty(true);
 		btn->draw();
 	}
 
 	for(auto& btn : action_buttons_) {
-		btn->set_dirty(true);
+		//btn->set_dirty(true);
 		btn->draw();
 	}
 }
@@ -1349,14 +1350,6 @@ void display::flip()
 	// TODO: draw_manager - remove this function
 	return;
 
-	// TODO: draw_manager - draw these somewhere more appropriate
-	font::draw_floating_labels();
-	events::raise_volatile_draw_event();
-
-	video().render_screen();
-
-	events::raise_volatile_undraw_event();
-	font::undraw_floating_labels();
 }
 
 // frametime is in milliseconds
@@ -1478,12 +1471,6 @@ static void draw_label(CVideo& video, const theme::label& label)
 
 void display::draw_all_panels()
 {
-	/*
-	 * The minimap is also a panel, force it to update its contents.
-	 * This is required when the size of the minimap has been modified.
-	 */
-	recalculate_minimap();
-
 	for(const auto& panel : theme_.panels()) {
 		draw_panel(video(), panel, menu_buttons_);
 	}
@@ -1781,7 +1768,7 @@ void display::draw_minimap()
 		}
 	}
 
-	auto clipper = draw::set_clip(area);
+	auto clipper = draw::reduce_clip(area);
 
 	// Draw the minimap background.
 	draw::fill(area, 31, 31, 23);
@@ -2463,11 +2450,11 @@ void display::draw(bool update, bool force)
 	set_scontext_unsynced leave_synced_context;
 
 	// TODO: draw_manager - draw these according to need
-	if(!panelsDrawn_) {
-		std::cerr << "display::draw draw panels" << std::endl;
+	//if(!panelsDrawn_) {
+		//std::cerr << "display::draw draw panels" << std::endl;
 		draw_all_panels();
 		panelsDrawn_ = true;
-	}
+	//}
 
 	// TODO: draw_manager - redraw background more judiciously
 	if(redraw_background_) {
@@ -2492,6 +2479,10 @@ void display::draw(bool update, bool force)
 		if (!map_screenshot_) {
 			draw_sidebar();
 		}
+	}
+
+	if(draw::get_clip().overlaps(minimap_area())) {
+		redrawMinimap_ = true;
 	}
 
 	// TODO: draw_manager - is this ordered correctly?
@@ -2531,6 +2522,12 @@ void display::layout()
 
 	// invalidate animated terrain, units and haloes
 	invalidate_animations();
+
+	// invalidate volatiles
+	events::raise_volatile_undraw_event();
+	font::update_floating_labels();
+	// TODO: draw_manager - rename and organize this sort of stuff
+	// TODO: draw_manager - volatile draw handling?
 }
 
 void display::render()
@@ -2548,7 +2545,7 @@ void display::render()
 bool display::expose(const SDL_Rect& region)
 {
 	if (region == sdl::empty_rect) { return false; } // TODO temp
-	std::cerr << "display::expose " << region << std::endl;
+	//std::cerr << "display::expose " << region << std::endl;
 	//invalidate_locations_in_rect(region);
 	// TODO: draw_manager - API to get src region in output space
 	rect src_region = region;
@@ -2557,17 +2554,25 @@ bool display::expose(const SDL_Rect& region)
 	//draw::blit(render_buffers_[front_], region);
 	draw::blit(render_buffers_[front_], region, src_region);
 	//draw();
-	// TODO: draw_manager - halos and floating labels
 	// TODO: draw_manager - halo render region not rely on clip?
 	auto clipper = draw::set_clip(region);
 	halo_man_->render();
-	return true; // TODO: draw_manager - this
+
+	font::draw_floating_labels();
+
+	// TODO: draw_manager - analyze what needs this
+	events::raise_volatile_draw_event();
+
+	return true; // TODO: draw_manager - maybe don't flip yeah?
 }
 
 rect display::screen_location()
 {
 	assert(!map_screenshot_);
-	return map_outside_area();
+	//return map_outside_area();
+	// well actually it also has to draw the panels, so
+	return video().draw_area();
+	// TODO: draw_manager - get this from theme perhaps?
 }
 
 void display::update_render_textures()
@@ -2615,9 +2620,8 @@ void display::draw_invalidated() {
 //	log_scope("display::draw_invalidated");
 	SDL_Rect clip_rect = get_clip_rect();
 	auto clipper = draw::set_clip(clip_rect);
-	std::cerr << "drawing " << invalidated_.size()
-		<< " invalidated hexes" << std::endl;
-	std::cerr << " with clip " << clip_rect << std::endl;
+	std::cerr << "drawing " << invalidated_.size() << " invalidated hexes"
+		<< " with clip " << clip_rect << std::endl;
 	for (const map_location& loc : invalidated_) {
 		int xpos = get_location_x(loc);
 		int ypos = get_location_y(loc);
