@@ -2550,7 +2550,6 @@ bool display::expose(const SDL_Rect& region)
 	if (region == sdl::empty_rect) { return false; } // TODO temp
 	std::cerr << "display::expose " << region << std::endl;
 	//invalidate_locations_in_rect(region);
-	//auto clipper = draw::set_clip(region);
 	// TODO: draw_manager - API to get src region in output space
 	rect src_region = region;
 	src_region *= video().get_pixel_scale();
@@ -2558,6 +2557,10 @@ bool display::expose(const SDL_Rect& region)
 	//draw::blit(render_buffers_[front_], region);
 	draw::blit(render_buffers_[front_], region, src_region);
 	//draw();
+	// TODO: draw_manager - halos and floating labels
+	// TODO: draw_manager - halo render region not rely on clip?
+	auto clipper = draw::set_clip(region);
+	halo_man_->render();
 	return true; // TODO: draw_manager - this
 }
 
@@ -3177,8 +3180,7 @@ void display::invalidate_animations()
 		}
 	} while(new_inval);
 
-	// TODO: draw_manager - rename this. it doesn't actually unrender
-	halo_man_->unrender(invalidated_);
+	halo_man_->update();
 }
 
 void display::reset_standing_animations()

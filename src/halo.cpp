@@ -27,12 +27,16 @@
 #include "halo.hpp"
 #include "log.hpp"
 #include "serialization/string_utils.hpp"
+#include "sdl/rect.hpp"
 #include "sdl/texture.hpp"
 
 #include <iostream>
 
 static lg::log_domain log_display("display");
 #define ERR_DP LOG_STREAM(err, log_display)
+#define WRN_DP LOG_STREAM(warn, log_display)
+#define LOG_DP LOG_STREAM(info, log_display)
+#define DBG_DP LOG_STREAM(debug, log_display)
 
 namespace halo
 {
@@ -47,9 +51,11 @@ public:
 			const map_location& loc, ORIENTATION, bool infinite);
 
 	void set_location(int x, int y);
+	rect get_draw_location();
 
+	void invalidate();
+	void update();
 	bool render();
-	void unrender();
 
 	bool expired()     const { return !images_.cycles() && images_.animation_finished(); }
 	bool need_update() const { return images_.need_update(); }
@@ -127,13 +133,7 @@ void set_location(int handle, int x, int y);
 /** Remove the halo with the given handle. */
 void remove(int handle);
 
-/**
- * Render and unrender haloes.
- *
- * Which haloes are rendered is determined by invalidated_locations and the
- * internal state in the control sets (in halo.cpp).
- */
-void unrender(std::set<map_location> invalidated_locations);
+void update();
 void render();
 
 }; //end halo_impl
@@ -164,6 +164,7 @@ halo_impl::effect::effect(display * screen, int xpos, int ypos, const animated<i
 
 void halo_impl::effect::set_location(int x, int y)
 {
+	// TODO: draw_manager - tidy...
 	int new_x = x - disp->get_location_x(map_location::ZERO());
 	int new_y = y - disp->get_location_y(map_location::ZERO());
 	if (new_x != x_ || new_y != y_) {
@@ -174,33 +175,40 @@ void halo_impl::effect::set_location(int x, int y)
 	}
 }
 
-bool halo_impl::effect::render()
+rect halo_impl::effect::get_draw_location()
+{
+	// TODO: draw_manager - this probably isn't always up to date yet?
+	return rect_;
+}
+
+/** Update the current location, animation frame, etc. */
+void halo_impl::effect::update()
 {
 	if(disp == nullptr) {
-		return false;
+		// Why would this ever be the case?
+		WRN_DP << "trying to update halo with null display" << std::endl;
+		rect_ = {};
+		return;
 	}
 
 	if(loc_.x != -1 && loc_.y != -1) {
-		if(disp->shrouded(loc_)) {
-			return false;
-		} else {
-			// The location of a halo is an x,y value and not a map location.
-			// This means when a map is zoomed, the halo's won't move,
-			// This glitch is most visible on [item] haloes.
-			// This workaround always recalculates the location of the halo
-			// (item haloes have a location parameter to hide them under the shroud)
-			// and reapplies that location.
-			// It might be optimized by storing and comparing the zoom value.
-			set_location(
-				disp->get_location_x(loc_) + disp->hex_size() / 2,
-				disp->get_location_y(loc_) + disp->hex_size() / 2);
-		}
+		// The location of a halo is an x,y value and not a map location.
+		// This means when a map is zoomed, the halo's won't move,
+		// This glitch is most visible on [item] haloes.
+		// This workaround always recalculates the location of the halo
+		// (item haloes have a location parameter to hide them under the shroud)
+		// and reapplies that location.
+		// It might be optimized by storing and comparing the zoom value.
+		set_location(
+			disp->get_location_x(loc_) + disp->hex_size() / 2,
+			disp->get_location_y(loc_) + disp->hex_size() / 2);
 	}
 
 	images_.update_last_draw_time();
 	tex_ = image::get_texture(current_image());
 	if(!tex_) {
-		return false;
+		rect_ = {};
+		return;
 	}
 	w_ = int(tex_.w() * disp->get_zoom_factor());
 	h_ = int(tex_.h() * disp->get_zoom_factor());
@@ -212,6 +220,22 @@ bool halo_impl::effect::render()
 	const int ypos = y_ + screeny - h_/2;
 
 	rect_ = {xpos, ypos, w_, h_};
+}
+
+bool halo_impl::effect::render()
+{
+	if(disp == nullptr) {
+		// Why would this ever be the case?
+		WRN_DP << "trying to render halo with null display" << std::endl;
+		return false;
+	}
+
+	if(loc_.x != -1 && loc_.y != -1 && disp->shrouded(loc_)) {
+		// TODO: draw_manager - should this always be so? what if the edge of the halo peeks out of the shroud?
+		DBG_DP << "not rendering shrouded halo" << std::endl;
+		return false;
+	}
+
 	rect clip_rect = disp->map_outside_area();
 
 	// If rendered the first time, need to determine the area affected.
@@ -220,6 +244,7 @@ bool halo_impl::effect::render()
 		display::rect_of_hexes hexes = disp->hexes_under_rect(rect_);
 		display::rect_of_hexes::iterator i = hexes.begin(), end = hexes.end();
 		for (;i != end; ++i) {
+			// TODO: draw_manager - this can probably be completely removed
 			overlayed_hexes_.push_back(*i);
 		}
 	}
@@ -230,7 +255,7 @@ bool halo_impl::effect::render()
 		return false;
 	}
 
-	auto clipper = draw::set_clip(clip_rect);
+	auto clipper = draw::reduce_clip(clip_rect);
 
 	buffer_pos_ = rect_;
 	//buffer_ = disp->video().read_texture(&buffer_pos_);
@@ -248,7 +273,7 @@ bool halo_impl::effect::render()
 	return true;
 }
 
-void halo_impl::effect::unrender()
+void halo_impl::effect::invalidate()
 {
 	// TODO: draw_manager - remove buffer_ texture
 	if (!tex_/* || !buffer_*/) {
@@ -364,81 +389,40 @@ void halo_impl::remove(int handle)
 	deleted_haloes.insert(handle);
 }
 
-void halo_impl::unrender(std::set<map_location> invalidated_locations)
+void halo_impl::update()
 {
 	if(haloes.empty()) {
-		//std::cerr << "nothing to unrender" << std::endl;
-		return;
-	}
-	if (invalidated_locations.size()) {
-		std::cerr << "attempting to invalidate halos at "
-			<< invalidated_locations.size() << " locations" << std::endl;
-	}
-	//assert(invalidated_haloes.empty());
-
-	// Remove expired haloes
-	std::map<int, effect>::iterator itor = haloes.begin();
-	for(; itor != haloes.end(); ++itor ) {
-		if(itor->second.expired()) {
-			deleted_haloes.insert(itor->first);
-		}
-	}
-
-	// Add the haloes marked for deletion to the invalidation set
-	std::set<int>::const_iterator set_itor = deleted_haloes.begin();
-	for(;set_itor != deleted_haloes.end(); ++set_itor) {
-		invalidated_haloes.insert(*set_itor);
-		haloes.find(*set_itor)->second.add_overlay_location(invalidated_locations);
-	}
-
-	// Test the multi-frame haloes whether they need an update
-	for(set_itor = changing_haloes.begin();
-			set_itor != changing_haloes.end(); ++set_itor) {
-		if(haloes.find(*set_itor)->second.need_update()) {
-			invalidated_haloes.insert(*set_itor);
-			haloes.find(*set_itor)->second.add_overlay_location(invalidated_locations);
-		}
-	}
-
-	// Find all halo's in a the invalidated area
-	size_t halo_count;
-
-	// Repeat until set of haloes in the invalidated area didn't change
-	// (including none found) or all existing haloes are found.
-	do {
-		halo_count = invalidated_haloes.size();
-		for(itor = haloes.begin(); itor != haloes.end(); ++itor) {
-			// Test all haloes not yet in the set
-			// which match one of the locations
-			if(invalidated_haloes.find(itor->first) == invalidated_haloes.end() &&
-					(itor->second.location_not_known() ||
-					itor->second.on_location(invalidated_locations))) {
-
-				// If found, add all locations which the halo invalidates,
-				// and add it to the set
-				itor->second.add_overlay_location(invalidated_locations);
-				invalidated_haloes.insert(itor->first);
-			}
-		}
-	} while (halo_count != invalidated_haloes.size() && halo_count != haloes.size());
-
-	if(halo_count == 0) {
 		return;
 	}
 
-	// Render the haloes:
-	// iterate through all the haloes and invalidate if in set
-	for(std::map<int, effect>::reverse_iterator ritor = haloes.rbegin(); ritor != haloes.rend(); ++ritor) {
-		if(invalidated_haloes.find(ritor->first) != invalidated_haloes.end()) {
-			ritor->second.unrender();
+	// Mark expired haloes for removal
+	for(auto& [id, effect] : haloes) {
+		if(effect.expired()) {
+			std::cerr << "expiring halo " << id << std::endl;
+			deleted_haloes.insert(id);
 		}
 	}
 
-	// Really delete the haloes marked for deletion
-	for(set_itor = deleted_haloes.begin(); set_itor != deleted_haloes.end(); ++set_itor) {
-		changing_haloes.erase(*set_itor);
-		invalidated_haloes.erase(*set_itor);
-		haloes.erase(*set_itor);
+	// Invalidate deleted halos
+	for(int id : deleted_haloes) {
+		std::cerr << "invalidating deleted halo " << id << std::endl;
+		haloes.at(id).invalidate();
+	}
+
+	// Invalidate any animated halos which need updating
+	for(int id : changing_haloes) {
+		auto& halo = haloes.at(id);
+		if(halo.need_update()) {
+			std::cerr << "invalidating changed halo " << id << std::endl;
+			halo.invalidate();
+		}
+	}
+
+	// Now actually delete the halos that need deleting
+	for(int id : deleted_haloes) {
+		std::cerr << "deleting halo " << id << std::endl;
+		changing_haloes.erase(id);
+		haloes.erase(id);
 	}
 
 	deleted_haloes.clear();
@@ -446,17 +430,20 @@ void halo_impl::unrender(std::set<map_location> invalidated_locations)
 
 void halo_impl::render()
 {
-	if(haloes.empty() ||
-			invalidated_haloes.empty()) {
+	if(haloes.empty()) {
 		return;
 	}
 
-	// Render the haloes: draw all invalidated haloes
-	for(int id : invalidated_haloes) {
-		haloes.at(id).render();
-	}
+	// TODO: draw_manager - pass in rect in stead of assuming clip makes sense
+	rect clip = draw::get_clip();
 
-	invalidated_haloes.clear();
+	for(auto& [id, effect] : haloes) {
+		effect.update();
+		if(clip.overlaps(effect.get_draw_location())) {
+			std::cerr << "drawing intersected halo " << id << std::endl;
+			effect.render();
+		}
+	}
 }
 
 // end halo_impl implementations
@@ -486,15 +473,9 @@ void manager::remove(const handle & h)
 	h->id_ = NO_HALO;
 }
 
-/**
- * Render and unrender haloes.
- *
- * Which haloes are rendered is determined by invalidated_locations and the
- * internal state in the control sets (in halo.cpp).
- */
-void manager::unrender(std::set<map_location> invalidated_locations)
+void manager::update()
 {
-	impl_->unrender(invalidated_locations);
+	impl_->update();
 }
 
 void manager::render()

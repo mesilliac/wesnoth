@@ -247,11 +247,6 @@ void game_display::draw_invalidated()
 	}
 }
 
-void game_display::post_commit()
-{
-	halo_man_->render();
-}
-
 void game_display::draw_hex(const map_location& loc)
 {
 	const bool on_map = get_map().on_board(loc);
