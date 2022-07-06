@@ -223,7 +223,7 @@ void widget::set_dirty(bool dirty)
 	if ((dirty && (volatile_ || hidden_override_ || state_ != DRAWN)) || (!dirty && state_ != DIRTY))
 		return;
 
-	std::cerr << "dirtying widget " << rect_ << std::endl;
+	//std::cerr << "dirtying widget " << rect_ << std::endl;
 	state_ = dirty ? DIRTY : DRAWN;
 	if (dirty) {
 		queue_redraw();

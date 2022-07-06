@@ -250,7 +250,7 @@ bool halo_impl::effect::render()
 	}
 
 	if(!clip_rect.overlaps(rect_)) {
-		std::cerr << "halo outside clip" << std::endl;
+		DBG_DP << "halo outside clip" << std::endl;
 		buffer_.reset();
 		return false;
 	}
@@ -260,7 +260,7 @@ bool halo_impl::effect::render()
 	buffer_pos_ = rect_;
 	//buffer_ = disp->video().read_texture(&buffer_pos_);
 
-	std::cerr << "drawing halo at " << rect_ << std::endl;
+	DBG_DP << "drawing halo at " << rect_ << std::endl;
 
 	if (orientation_ == NORMAL) {
 		draw::blit(tex_, rect_);
@@ -286,7 +286,7 @@ void halo_impl::effect::invalidate()
 	// don't need to unrender them because shroud paints over the underlying
 	// area anyway.
 	if (loc_.x != -1 && loc_.y != -1 && disp->shrouded(loc_)) {
-		std::cerr << "shrouded or unpositioned halo" << std::endl;
+		DBG_DP << "shrouded or unpositioned halo" << std::endl;
 		// TODO: draw_manager - probably should redo this
 		return;
 	}
@@ -306,7 +306,7 @@ void halo_impl::effect::invalidate()
 	buffer_pos_.x += xpos - rect_.x;
 	buffer_pos_.y += ypos - rect_.y;
 
-	std::cerr << "invalidating halo" << buffer_pos_ << std::endl;
+	DBG_DP << "invalidating halo" << buffer_pos_ << std::endl;
 
 	gui2::draw_manager::invalidate_region(buffer_pos_);
 	//draw::blit(buffer_, buffer_pos_);
@@ -398,14 +398,14 @@ void halo_impl::update()
 	// Mark expired haloes for removal
 	for(auto& [id, effect] : haloes) {
 		if(effect.expired()) {
-			std::cerr << "expiring halo " << id << std::endl;
+			DBG_DP << "expiring halo " << id << std::endl;
 			deleted_haloes.insert(id);
 		}
 	}
 
 	// Invalidate deleted halos
 	for(int id : deleted_haloes) {
-		std::cerr << "invalidating deleted halo " << id << std::endl;
+		DBG_DP << "invalidating deleted halo " << id << std::endl;
 		haloes.at(id).invalidate();
 	}
 
@@ -413,14 +413,14 @@ void halo_impl::update()
 	for(int id : changing_haloes) {
 		auto& halo = haloes.at(id);
 		if(halo.need_update()) {
-			std::cerr << "invalidating changed halo " << id << std::endl;
+			DBG_DP << "invalidating changed halo " << id << std::endl;
 			halo.invalidate();
 		}
 	}
 
 	// Now actually delete the halos that need deleting
 	for(int id : deleted_haloes) {
-		std::cerr << "deleting halo " << id << std::endl;
+		DBG_DP << "deleting halo " << id << std::endl;
 		changing_haloes.erase(id);
 		haloes.erase(id);
 	}
@@ -440,7 +440,7 @@ void halo_impl::render()
 	for(auto& [id, effect] : haloes) {
 		effect.update();
 		if(clip.overlaps(effect.get_draw_location())) {
-			std::cerr << "drawing intersected halo " << id << std::endl;
+			DBG_DP << "drawing intersected halo " << id << std::endl;
 			effect.render();
 		}
 	}

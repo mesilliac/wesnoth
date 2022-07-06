@@ -1083,7 +1083,6 @@ void unit_animation::restart_animation()
 
 void unit_animation::redraw(frame_parameters& value, halo::manager& halo_man)
 {
-	std::cerr << "redrawing something" << std::endl;
 	invalidated_ = false;
 	overlaped_hex_.clear();
 

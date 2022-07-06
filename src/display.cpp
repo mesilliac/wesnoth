@@ -1916,18 +1916,26 @@ bool display::scroll(int xmove, int ymove, bool force)
 	//
 
 	if(!screen_.update_locked()) {
-		rect dstrect = map_area();
-		dstrect.x += diff_x;
-		dstrect.y += diff_y;
-		dstrect.clip(map_area());
+		rect dst = map_area();
+		dst.x += diff_x;
+		dst.y += diff_y;
+		dst.clip(map_area());
 
-		SDL_Rect srcrect = dstrect;
-		srcrect.x -= diff_x;
-		srcrect.y -= diff_y;
+		rect src = dst;
+		src.x -= diff_x;
+		src.y -= diff_y;
 
-		// TODO: highdpi - This is gross and should be replaced
-		texture t = screen_.read_texture(&srcrect);
-		draw::blit(t, dstrect);
+		src = video().to_output(src);
+
+		// swap buffers
+		std::swap(front_, back_);
+
+		// copy from the back to the front buffer
+		auto rts = draw::set_render_target(front_);
+		draw::blit(back_, dst, src);
+
+		// queue repaint
+		gui2::draw_manager::invalidate_region(map_area());
 	}
 
 	if(diff_y != 0) {
@@ -2539,7 +2547,7 @@ void display::render()
 	// It is not responsible for halos and floating labels.
 	// TODO: draw_manager - panels go where
 	//std::cerr << "display::render" << std::endl;
-	auto target_setter = draw::set_render_target(render_buffers_[front_]);
+	auto target_setter = draw::set_render_target(front_);
 	// TODO: draw_manager - separate halos and floating labels
 	// TODO: draw_manager - pull floating labels out of font::
 	draw();
@@ -2554,8 +2562,8 @@ bool display::expose(const SDL_Rect& region)
 	rect src_region = region;
 	src_region *= video().get_pixel_scale();
 	//std::cerr << "  src region " << src_region << std::endl;
-	//draw::blit(render_buffers_[front_], region);
-	draw::blit(render_buffers_[front_], region, src_region);
+	//draw::blit(front_, region);
+	draw::blit(front_, region, src_region);
 	//draw();
 	// TODO: draw_manager - halo render region not rely on clip?
 	auto clipper = draw::set_clip(region);
@@ -2590,20 +2598,18 @@ void display::update_render_textures()
 
 	// Check that the front buffer size is correct.
 	// Buffers are always resized together, so we only need to check one.
-	texture& front = render_buffers_[front_];
-	point size = front.get_raw_size();
+	point size = front_.get_raw_size();
 	if (size.x == oarea.w && size.y == oarea.h) {
 		// buffers are fine
 		return;
 	}
 
 	// For now, just clobber and regenerate both textures.
-	std::cerr << "updating display render buffers to " << oarea << std::endl;
-	texture& back = render_buffers_[back_];
-	front = texture(oarea.w, oarea.h, SDL_TEXTUREACCESS_TARGET);
-	front.set_draw_size(darea.w, darea.h);
-	back = texture(oarea.w, oarea.h, SDL_TEXTUREACCESS_TARGET);
-	back.set_draw_size(darea.w, darea.h);
+	LOG_DP << "updating display render buffers to " << oarea << std::endl;
+	front_ = texture(oarea.w, oarea.h, SDL_TEXTUREACCESS_TARGET);
+	front_.set_draw_size(darea.w, darea.h);
+	back_ = texture(oarea.w, oarea.h, SDL_TEXTUREACCESS_TARGET);
+	back_.set_draw_size(darea.w, darea.h);
 	// TODO: draw_manager - this is gross
 	dirty_ = true;
 }
@@ -2627,7 +2633,7 @@ void display::draw_invalidated() {
 //	log_scope("display::draw_invalidated");
 	SDL_Rect clip_rect = get_clip_rect();
 	auto clipper = draw::set_clip(clip_rect);
-	std::cerr << "drawing " << invalidated_.size() << " invalidated hexes"
+	DBG_DP << "drawing " << invalidated_.size() << " invalidated hexes"
 		<< " with clip " << clip_rect << std::endl;
 	for (const map_location& loc : invalidated_) {
 		int xpos = get_location_x(loc);
@@ -2851,7 +2857,6 @@ void display::draw_hex(const map_location& loc)
 
 }
 
-// TODO: draw_manager - this needs a lot of work
 /**
  * Redraws the specified report (if anything has changed).
  * If a config is not supplied, it will be generated via
@@ -2890,7 +2895,7 @@ void display::refresh_report(const std::string& report_name, const config * new_
 		return;
 	}
 
-	std::cerr << "updating report: " << report_name << std::endl;
+	DBG_DP << "updating report: " << report_name << std::endl;
 
 	// Mark both old and new locations for redraw.
 	gui2::draw_manager::invalidate_region(loc);
@@ -2926,7 +2931,6 @@ void display::refresh_report(const std::string& report_name, const config * new_
 	draw_report(report_name, true);
 }
 
-// TODO: draw_manager - refactor reports to separate layout and draw
 void display::draw_report(const std::string& report_name, bool tooltip_test)
 {
 	const theme::status_item *item = theme_.get_status_item(report_name);
@@ -2938,12 +2942,6 @@ void display::draw_report(const std::string& report_name, bool tooltip_test)
 
 	const rect& loc = reportLocations_[report_name];
 	const config& report = reports_[report_name];
-
-	if (!tooltip_test) {
-		std::cerr << "drawing " << report_name << " at " << loc << std::endl;
-		std::cerr << "clip " << draw::get_clip() << std::endl;
-		std::cerr << report.child_count("element") << " elements" << std::endl;
-	}
 
 	int x = loc.x, y = loc.y;
 

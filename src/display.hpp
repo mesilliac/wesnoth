@@ -594,9 +594,8 @@ public:
 
 private:
 	/** Render textures, for intermediate rendering. */
-	texture render_buffers_[2] = {};
-	int front_ = 0;
-	int back_ = 1;
+	texture front_ = {};
+	texture back_ = {};
 
 	/** Ensure render textures are valid and correct. */
 	void update_render_textures();
