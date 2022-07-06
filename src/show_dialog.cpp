@@ -352,8 +352,6 @@ SDL_Rect dialog_frame::draw_title(CVideo* video)
 
 void dialog_frame::draw()
 {
-	std::cerr << "df draw" << std::endl;
-
 	//draw background
 	draw_background();
 
@@ -364,24 +362,15 @@ void dialog_frame::draw()
 	if (!title_.empty()) {
 		draw_title(&video_);
 	}
-
-	std::cerr << "df draw end" << std::endl;
-
-	// TODO: draw_manager - maybe need to draw buttons?
 }
 
 void dialog_frame::layout()
 {
-	// I am not actually sure where the main layout happens,
-	// but it doesn't seem to be in draw so that's okay i guess.
-
 	if (!dirty_) {
 		return;
 	}
 
-	std::cerr << "df lo" << std::endl;
-
-	//draw buttons
+	// Layout buttons
 	SDL_Rect buttons_area = dim_.button_row;
 	if(buttons_ != nullptr) {
 #ifdef OK_BUTTON_ON_RIGHT
@@ -393,7 +382,7 @@ void dialog_frame::layout()
 		}
 	}
 
-	// This however, was in draw.
+	// Layout help button, if any
 	if(help_button_ != nullptr) {
 		help_button_->set_location(dim_.interior.x+ButtonHPadding, buttons_area.y);
 	}
@@ -403,7 +392,7 @@ void dialog_frame::layout()
 
 bool dialog_frame::expose(const SDL_Rect& region)
 {
-	std::cerr << "dialog_frame::expose " << region << std::endl;
+	//std::cerr << "dialog_frame::expose " << region << std::endl;
 	(void)region; // TODO
 	dirty_ = true;
 	draw();

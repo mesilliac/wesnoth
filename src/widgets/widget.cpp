@@ -293,9 +293,14 @@ void widget::set_volatile(bool val)
 		state_ = DRAWN;
 }
 
+void widget::queue_redraw(const rect& r)
+{
+	gui2::draw_manager::invalidate_region(r);
+}
+
 void widget::queue_redraw()
 {
-	gui2::draw_manager::invalidate_region(location());
+	queue_redraw(location());
 }
 
 bool widget::expose(const SDL_Rect& region)

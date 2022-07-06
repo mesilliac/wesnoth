@@ -63,6 +63,9 @@ public:
 
 	/** Indicate that the widget should be redrawn. */
 	void queue_redraw();
+	/** Indicate that a specific region of the screen should be redrawn.
+	  * This is in absolute drawing coordinates, and is not clipped. */
+	void queue_redraw(const rect&);
 
 	void set_dirty(bool dirty=true); // TODO: draw_manager - remove
 	bool dirty() const; // TODO: draw_manager - remove
