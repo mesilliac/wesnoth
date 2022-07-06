@@ -83,6 +83,7 @@ void widget::set_location(const SDL_Rect& rect)
 	if(state_ == UNINIT && rect.x != -1234 && rect.y != -1234)
 		state_ = DRAWN;
 
+	// TODO: draw_manager - overhaul
 	bg_restore();
 	bg_cancel();
 	rect_ = rect;
@@ -208,6 +209,7 @@ bool widget::enabled() const
 	return enabled_;
 }
 
+// TODO: draw_manager - this needs to die
 void widget::set_dirty(bool dirty)
 {
 	if ((dirty && (volatile_ || hidden_override_ || state_ != DRAWN)) || (!dirty && state_ != DIRTY))
@@ -279,15 +281,19 @@ void widget::set_volatile(bool val)
 		state_ = DRAWN;
 }
 
+void widget::queue_redraw()
+{
+	gui2::draw_manager::invalidate_region(location());
+}
+
 void widget::draw()
 {
-	if (hidden() || !dirty())
+	if (hidden())
 		return;
 
-	bg_restore();
+	//bg_restore();
 
 	if (clip_) {
-		// TODO: draw_manager - reduce clip not set?
 		auto clipper = draw::reduce_clip(clip_rect_);
 		draw_contents();
 	} else {

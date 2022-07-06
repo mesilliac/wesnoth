@@ -57,10 +57,13 @@ public:
 	//for drawing widgets with alpha components in volatile settings where
 	//the background may change at any time.
 	//(e.g. for putting widgets on top of the game map)
-	void set_volatile(bool val=true);
+	void set_volatile(bool val=true); // TODO: draw_manager - remove
 
-	void set_dirty(bool dirty=true);
-	bool dirty() const;
+	/** Indicate that the widget should be redrawn. */
+	void queue_redraw();
+
+	void set_dirty(bool dirty=true); // TODO: draw_manager - remove
+	bool dirty() const; // TODO: draw_manager - remove
 	const std::string& id() const;
 	void set_id(const std::string& id);
 
@@ -76,11 +79,11 @@ protected:
 
 	// During each relocation, this function should be called to register
 	// the rectangles the widget needs to refresh automatically
-	void bg_register(const SDL_Rect& rect);
-	void bg_restore() const;
-	void bg_restore(const SDL_Rect& rect) const;
-	void bg_update();
-	void bg_cancel();
+	void bg_register(const SDL_Rect& rect); // TODO: draw_manager - remove
+	void bg_restore() const; // TODO: draw_manager - remove
+	void bg_restore(const SDL_Rect& rect) const; // TODO: draw_manager - remove
+	void bg_update(); // TODO: draw_manager - remove
+	void bg_cancel(); // TODO: draw_manager - remove
 
 	CVideo& video() const { return *video_; }
 
@@ -102,8 +105,8 @@ protected:
 	void aquire_mouse_lock();
 	void free_mouse_lock();
 private:
-	void volatile_draw();
-	void volatile_undraw();
+	void volatile_draw(); // TODO: draw_manager - remove
+	void volatile_undraw(); // TODO: draw_manager - remove
 
 	void hide_override(bool value = true);
 

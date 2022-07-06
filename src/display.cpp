@@ -958,17 +958,22 @@ void display::create_buttons()
 	DBG_DP << "buttons created\n";
 }
 
-void display::render_buttons()
+void display::draw_buttons()
 {
-	// TODO: draw_manager - prune by rect?
+	const rect clip = draw::get_clip();
 	for(auto& btn : menu_buttons_) {
-		//btn->set_dirty(true);
-		btn->draw();
+		if(clip.overlaps(btn->location())) {
+			//btn->set_dirty(true);
+			// TODO: draw_manager - this won't actually draw, because it's not "dirty", but dirty can't be set because that invalidates. Overhaul.
+			btn->draw();
+		}
 	}
 
 	for(auto& btn : action_buttons_) {
-		//btn->set_dirty(true);
-		btn->draw();
+		if(clip.overlaps(btn->location())) {
+			//btn->set_dirty(true);
+			btn->draw();
+		}
 	}
 }
 
@@ -1478,8 +1483,6 @@ void display::draw_all_panels()
 	for(const auto& label : theme_.labels()) {
 		draw_label(video(), label);
 	}
-
-	render_buttons();
 }
 
 void display::draw_text_in_hex(const map_location& loc,
@@ -2559,6 +2562,8 @@ bool display::expose(const SDL_Rect& region)
 	halo_man_->render();
 
 	draw_reports();
+
+	draw_buttons();
 
 	font::draw_floating_labels();
 

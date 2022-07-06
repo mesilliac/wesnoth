@@ -175,7 +175,7 @@ public:
 	 *
 	 * See @ref layout_algorithm for more information.
 	 *
-	 * This is also called by gui2::draw_manaer to finalize screen layout.
+	 * This is also called by gui2::draw_manager to finalize screen layout.
 	 */
 	virtual void layout() override;
 

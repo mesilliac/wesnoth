@@ -405,7 +405,7 @@ public:
 
 	void layout_buttons();
 
-	void render_buttons();
+	void draw_buttons();
 
 	void invalidate_theme() { panelsDrawn_ = false; }
 
