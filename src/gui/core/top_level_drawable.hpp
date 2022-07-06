@@ -24,6 +24,12 @@ namespace gui2
  *
  * For now, TLDs keep track of where they are on the screen on their own.
  * They must draw themselves when requested via expose().
+ *
+ * The TLD interface will be called in the following order:
+ *   - layout()
+ *   - render()
+ *   - screen_location()
+ *   - zero or more expose() calls
  */
 class top_level_drawable
 {
@@ -51,7 +57,7 @@ public:
 	 * For example if the drawable has an offscreen buffer it manages,
 	 * it should ensure this buffer is up to date.
 	 *
-	 * TLDs should invalidate any visibly changed regions during this call.
+	 * TLDs should also invalidate any regions visibly changed by this call.
 	 *
 	 * This interface is optional.
 	 */

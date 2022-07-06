@@ -48,6 +48,7 @@ void invalidate_region(const rect& region)
 		return;
 	}
 
+	// On-add region optimization
 	rect progressive_cover = region;
 	int64_t cumulative_area = 0;
 	for (auto& r : invalidated_regions_) {
@@ -91,14 +92,10 @@ void invalidate_region(const rect& region)
 		}
 	}
 
+	// No optimization was found, so add a new invalidation
 	//std::cerr << "invalidating region " << region << std::endl;
 	std::cerr << '.';
 	invalidated_regions_.push_back(region);
-	// For now we store all the invalidated regions separately.
-	// Several avenues for optimization exist, some rather straightforward.
-	// This can be looked into if it becomes common to invalidate multiple
-	// regions per frame. This is unlikely for the moment, as map animation
-	// is still handled internally by the "display" class.
 }
 
 void sparkle()

@@ -2844,6 +2844,7 @@ void display::draw_hex(const map_location& loc)
 
 }
 
+// TODO: draw_manager - this needs a lot of work
 /**
  * Redraws the specified report (if anything has changed).
  * If a config is not supplied, it will be generated via
