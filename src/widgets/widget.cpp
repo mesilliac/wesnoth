@@ -42,6 +42,9 @@ widget::widget(CVideo& video, const bool auto_join)
 
 widget::~widget()
 {
+	if (!hidden()) {
+		queue_redraw();
+	}
 	bg_cancel();
 	free_mouse_lock();
 }
@@ -94,6 +97,11 @@ void widget::set_location(const SDL_Rect& rect)
 void widget::update_location(const SDL_Rect& rect)
 {
 	bg_register(rect);
+}
+
+void widget::layout()
+{
+	// this basically happens in set_location, so there's nothing to do here.
 }
 
 const SDL_Rect* widget::clip_rect() const
@@ -215,9 +223,13 @@ void widget::set_dirty(bool dirty)
 	if ((dirty && (volatile_ || hidden_override_ || state_ != DRAWN)) || (!dirty && state_ != DIRTY))
 		return;
 
+	std::cerr << "dirtying widget " << rect_ << std::endl;
 	state_ = dirty ? DIRTY : DRAWN;
-	if (!dirty)
-		needs_restore_ = true;
+	if (dirty) {
+		queue_redraw();
+	}
+	//if (!dirty)
+	//	needs_restore_ = true;
 }
 
 bool widget::dirty() const
@@ -286,6 +298,17 @@ void widget::queue_redraw()
 	gui2::draw_manager::invalidate_region(location());
 }
 
+bool widget::expose(const SDL_Rect& region)
+{
+	// TODO: draw_manager - draw always? or only when dirty?
+	//if (!dirty()) {
+	//	return false;
+	//}
+	(void)region;
+	draw();
+	return true;
+}
+
 void widget::draw()
 {
 	if (hidden())
@@ -308,7 +331,7 @@ void widget::volatile_draw()
 	if (!volatile_ || state_ != DRAWN || hidden_override_)
 		return;
 	state_ = DIRTY;
-	std::cerr << "volatile widget draw" << std::endl;
+	std::cerr << "volatile widget draw " << rect_ << std::endl;
 	//bg_update();
 	draw();
 }
@@ -317,7 +340,7 @@ void widget::volatile_undraw()
 {
 	if (!volatile_)
 		return;
-	std::cerr << "volatile widget undraw" << std::endl;
+	std::cerr << "volatile widget undraw " << rect_ << std::endl;
 	bg_restore();
 }
 
@@ -354,6 +377,7 @@ void widget::process_tooltip_string(int mousex, int mousey)
 
 void widget::handle_event(const SDL_Event& event) {
 	if (event.type == DRAW_ALL_EVENT) {
+		std::cerr << "WIDGET DRAW ALL " << rect_ << std::endl;
 		set_dirty();
 		draw();
 	}

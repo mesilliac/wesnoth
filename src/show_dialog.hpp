@@ -69,7 +69,7 @@ public:
 
 	dialog_frame(CVideo &video, const std::string& title="",
 		const style& dialog_style=default_style,
-		bool auto_restore=true, std::vector<button*>* buttons=nullptr,
+		std::vector<button*>* buttons=nullptr,
 		button* help_button=nullptr);
 	~dialog_frame();
 

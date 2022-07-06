@@ -14,6 +14,7 @@
 
 #include "gui/core/draw_manager.hpp"
 
+#include "draw.hpp"
 #include "exceptions.hpp"
 #include "log.hpp"
 #include "gui/core/top_level_drawable.hpp"
@@ -171,6 +172,7 @@ next:
 			}
 		}
 		std::cerr << "+";
+		auto clipper = draw::set_clip(r);
 		for (auto tld : top_level_drawables_) {
 			rect i = r.intersect(tld->screen_location());
 			if (i.empty()) {
@@ -209,6 +211,14 @@ void unregister_drawable(gui2::top_level_drawable* tld)
 
 	// Remove any linked animations
 	animations_.erase(tld);
+}
+
+void raise_drawable(gui2::top_level_drawable* tld)
+{
+	std::cerr << "raising TLD " << static_cast<void*>(tld) << std::endl;
+	auto& vec = top_level_drawables_;
+	vec.erase(std::remove(vec.begin(), vec.end(), tld), vec.end());
+	vec.push_back(tld);
 }
 
 void register_static_animation(gui2::top_level_drawable* tld, const SDL_Rect& r)

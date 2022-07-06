@@ -60,6 +60,9 @@ void register_drawable(gui2::top_level_drawable* tld);
 /** Remove a top-level drawable from the drawing stack. */
 void unregister_drawable(gui2::top_level_drawable* tld);
 
+/** Raise a TLD to the top of the drawing stack. */
+void raise_drawable(gui2::top_level_drawable* tld);
+
 /** Register an animation. This is a prototyping interface which will change. */
 void register_static_animation(top_level_drawable* tld, const SDL_Rect& r);
 

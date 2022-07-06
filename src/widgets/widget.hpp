@@ -16,6 +16,7 @@
 #pragma once
 
 #include "events.hpp"
+#include "gui/core/top_level_drawable.hpp"
 #include "sdl/rect.hpp"
 #include "sdl/surface.hpp"
 
@@ -25,7 +26,8 @@ class CVideo;
 
 namespace gui {
 
-class widget : public events::sdl_handler
+// TODO: making widgets TLDs is horrible. Please move everything to GUI2.
+class widget : public events::sdl_handler, public gui2::top_level_drawable
 {
 public:
 	const rect& location() const;
@@ -86,6 +88,16 @@ protected:
 	void bg_cancel(); // TODO: draw_manager - remove
 
 	CVideo& video() const { return *video_; }
+
+public:
+	/* draw_manager interface */
+
+	/** Called by gui2::draw_manager to validate layout. */
+	virtual void layout() override;
+	/** Called by gui2::draw_manager when it believes a redraw is necessary. */
+	virtual bool expose(const SDL_Rect &region) override;
+	/** The current draw location of the display, on the screen. */
+	virtual rect screen_location() override { return location(); }
 
 public:
 	virtual void draw();

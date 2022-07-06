@@ -21,6 +21,7 @@
 #include "floating_label.hpp"
 #include "picture.hpp"
 #include "gettext.hpp"
+#include "gui/core/draw_manager.hpp"
 #include "gui/core/event/handler.hpp"
 #include "help/help.hpp"
 #include "hotkey/command_executor.hpp"
@@ -80,15 +81,13 @@ dialog_manager::~dialog_manager()
 }
 
 dialog_frame::dialog_frame(CVideo& video, const std::string& title,
-		const style& style, bool auto_restore,
+		const style& style,
 		std::vector<button*>* buttons, button* help_button) :
 	title_(title),
 	video_(video),
 	dialog_style_(style),
 	buttons_(buttons),
 	help_button_(help_button),
-	restorer_(nullptr),
-	auto_restore_(auto_restore),
 	dim_(),
 	top_(image::get_texture("dialogs/" + dialog_style_.panel + "-border-top.png")),
 	bot_(image::get_texture("dialogs/" + dialog_style_.panel + "-border-bottom.png")),
@@ -102,11 +101,19 @@ dialog_frame::dialog_frame(CVideo& video, const std::string& title,
 	have_border_(top_ && bot_ && left_ && right_),
 	dirty_(true)
 {
+	// Raise buttons so they are drawn on top.
+	// and BTW buttons_ being a pointer to a vector is fucking insane
+	for (button* b : *buttons_) {
+		gui2::draw_manager::raise_drawable(b);
+	}
+	if (help_button) {
+		gui2::draw_manager::raise_drawable(help_button_);
+	}
 }
 
 dialog_frame::~dialog_frame()
 {
-	delete restorer_;
+	gui2::draw_manager::invalidate_region(screen_location());
 }
 
 dialog_frame::dimension_measurements::dimension_measurements() :
@@ -247,6 +254,9 @@ dialog_frame::dimension_measurements dialog_frame::layout(int x, int y, int w, i
 	}
 	dim_.title.x = dim_.interior.x + title_border_w;
 	dim_.title.y = dim_.interior.y + title_border_h;
+
+	gui2::draw_manager::invalidate_region(dim_.exterior);
+
 	return dim_;
 }
 
@@ -305,19 +315,8 @@ void dialog_frame::draw_border()
 	});
 }
 
-void dialog_frame::clear_background()
-{
-	delete restorer_;
-	restorer_ = nullptr;
-}
-
 void dialog_frame::draw_background()
 {
-	if(auto_restore_) {
-		clear_background();
-		restorer_ = new surface_restorer(&video_, dim_.exterior);
-	}
-
 	if (dialog_style_.blur_radius) {
 		// This is no longer used by anything.
 		// The only thing that uses dialog_frame is help/help.cpp,
@@ -330,7 +329,7 @@ void dialog_frame::draw_background()
 		return;
 	}
 
-	auto clipper = draw::set_clip(dim_.interior);
+	auto clipper = draw::reduce_clip(dim_.interior);
 	for(int i = 0; i < dim_.interior.w; i += bg_.w()) {
 		for(int j = 0; j < dim_.interior.h; j += bg_.h()) {
 			SDL_Rect src {0,0,0,0};
@@ -353,8 +352,7 @@ SDL_Rect dialog_frame::draw_title(CVideo* video)
 
 void dialog_frame::draw()
 {
-	if (!dirty_)
-		return;
+	std::cerr << "df draw" << std::endl;
 
 	//draw background
 	draw_background();
@@ -366,6 +364,22 @@ void dialog_frame::draw()
 	if (!title_.empty()) {
 		draw_title(&video_);
 	}
+
+	std::cerr << "df draw end" << std::endl;
+
+	// TODO: draw_manager - maybe need to draw buttons?
+}
+
+void dialog_frame::layout()
+{
+	// I am not actually sure where the main layout happens,
+	// but it doesn't seem to be in draw so that's okay i guess.
+
+	if (!dirty_) {
+		return;
+	}
+
+	std::cerr << "df lo" << std::endl;
 
 	//draw buttons
 	SDL_Rect buttons_area = dim_.button_row;
@@ -379,6 +393,7 @@ void dialog_frame::draw()
 		}
 	}
 
+	// This however, was in draw.
 	if(help_button_ != nullptr) {
 		help_button_->set_location(dim_.interior.x+ButtonHPadding, buttons_area.y);
 	}
@@ -386,14 +401,9 @@ void dialog_frame::draw()
 	dirty_ = false;
 }
 
-void dialog_frame::layout()
-{
-	// I am not actually sure where this happens,
-	// but it doesn't seem to be in draw so that's okay.
-}
-
 bool dialog_frame::expose(const SDL_Rect& region)
 {
+	std::cerr << "dialog_frame::expose " << region << std::endl;
 	(void)region; // TODO
 	dirty_ = true;
 	draw();

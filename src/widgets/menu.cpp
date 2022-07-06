@@ -777,9 +777,9 @@ SDL_Rect menu::style::item_size(const std::string& item) const {
 	return res;
 }
 
-void menu::style::draw_row_bg(menu& menu_ref, const std::size_t /*row_index*/, const SDL_Rect& rect, ROW_TYPE type)
+void menu::style::draw_row_bg(menu& /*menu_ref*/, const std::size_t /*row_index*/, const SDL_Rect& rect, ROW_TYPE type)
 {
-	menu_ref.bg_restore(rect);
+	//menu_ref.bg_restore(rect);
 
 	int rgb = 0;
 	double alpha = 0.0;
