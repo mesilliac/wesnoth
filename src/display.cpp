@@ -206,7 +206,7 @@ display::display(const display_context* dc,
 	, fps_counter_()
 	, fps_start_()
 	, fps_actual_()
-	, reportRects_()
+	, reportLocations_()
 	, reportSurfaces_()
 	, reports_()
 	, menu_buttons_()
@@ -2362,7 +2362,7 @@ void display::redraw_everything()
 
 	invalidateGameStatus_ = true;
 
-	reportRects_.clear();
+	reportLocations_.clear();
 	reportSurfaces_.clear();
 	reports_.clear();
 
@@ -2476,9 +2476,6 @@ void display::draw(bool update, bool force)
 		}
 		drawing_buffer_commit();
 		post_commit();
-		if (!map_screenshot_) {
-			draw_sidebar();
-		}
 	}
 
 	if(draw::get_clip().overlaps(minimap_area())) {
@@ -2523,6 +2520,9 @@ void display::layout()
 	// invalidate animated terrain, units and haloes
 	invalidate_animations();
 
+	// update and invalidate reports
+	refresh_reports();
+
 	// invalidate volatiles
 	events::raise_volatile_undraw_event();
 	font::update_floating_labels();
@@ -2557,6 +2557,8 @@ bool display::expose(const SDL_Rect& region)
 	// TODO: draw_manager - halo render region not rely on clip?
 	auto clipper = draw::set_clip(region);
 	halo_man_->render();
+
+	draw_reports();
 
 	font::draw_floating_labels();
 
@@ -2854,7 +2856,8 @@ void display::refresh_report(const std::string& report_name, const config * new_
 {
 	const theme::status_item *item = theme_.get_status_item(report_name);
 	if (!item) {
-		reportSurfaces_[report_name].reset();
+		// TODO: draw_manager omfg why are there unused reports here
+		//WRN_DP << "no report '" << report_name << "' in theme" << std::endl;
 		return;
 	}
 
@@ -2872,47 +2875,30 @@ void display::refresh_report(const std::string& report_name, const config * new_
 	if ( new_cfg == nullptr )
 		new_cfg = &generated_cfg;
 
-	SDL_Rect &rect = reportRects_[report_name];
-	const SDL_Rect &new_rect = item->location(screen_.draw_area());
-	texture &bg_restore = reportSurfaces_[report_name];
+	rect& loc = reportLocations_[report_name];
+	// TODO: draw_manager - rect
+	const SDL_Rect& new_loc = item->location(screen_.draw_area());
 	config &report = reports_[report_name];
 
 	// Report and its location is unchanged since last time. Do nothing.
-	if (bg_restore && rect == new_rect && report == *new_cfg) {
+	if (loc == new_loc && report == *new_cfg) {
 		return;
 	}
 
-	// Update the config in reports_.
+	std::cerr << "updating report: " << report_name << std::endl;
+
+	// Mark both old and new locations for redraw.
+	gui2::draw_manager::invalidate_region(loc);
+	gui2::draw_manager::invalidate_region(new_loc);
+
+	// Update the config and current location.
 	report = *new_cfg;
+	loc = new_loc;
 
-	// TODO: highdpi - remove background restorer
-	if (bg_restore) {
-		draw::blit(bg_restore, rect);
-	}
-
-	// If the rectangle has just changed, assign the surface to it
-	if (!bg_restore || new_rect != rect)
-	{
-		bg_restore.reset();
-		rect = new_rect;
-
-		// If the rectangle is present, and we are blitting text,
-		// then we need to backup the surface.
-		// (Images generally won't need backing up,
-		// unless they are transparent, but that is done later).
-		if (rect.w > 0 && rect.h > 0) {
-			bg_restore = texture(screen_.read_pixels_low_res(&rect));
-			if (!reportSurfaces_[report_name]) {
-				ERR_DP << "Could not backup background for report!" << std::endl;
-			}
-		}
-	}
-
-	tooltips::clear_tooltips(rect);
+	// TODO: draw_manager - verify this is okay here
+	tooltips::clear_tooltips(loc);
 
 	if (report.empty()) return;
-
-	int x = rect.x, y = rect.y;
 
 	// Add prefix, postfix elements.
 	// Make sure that they get the same tooltip
@@ -2930,17 +2916,43 @@ void display::refresh_report(const std::string& report_name, const config * new_
 		e["tooltip"] = report.child("element", -1)["tooltip"];
 	}
 
+	// Do a fake run of drawing the report, so tooltips can be determined.
+	// TODO: this is horrible, refactor reports to actually make sense
+	draw_report(report_name, true);
+}
+
+// TODO: draw_manager - refactor reports to separate layout and draw
+void display::draw_report(const std::string& report_name, bool tooltip_test)
+{
+	const theme::status_item *item = theme_.get_status_item(report_name);
+	if (!item) {
+		// TODO: draw_manager unused report_clock report_battery WTF
+		//WRN_DP << "no report '" << report_name << "' in theme" << std::endl;
+		return;
+	}
+
+	const rect& loc = reportLocations_[report_name];
+	const config& report = reports_[report_name];
+
+	if (!tooltip_test) {
+		std::cerr << "drawing " << report_name << " at " << loc << std::endl;
+		std::cerr << "clip " << draw::get_clip() << std::endl;
+		std::cerr << report.child_count("element") << " elements" << std::endl;
+	}
+
+	int x = loc.x, y = loc.y;
+
 	// Loop through and display each report element.
 	int tallest = 0;
 	int image_count = 0;
 	bool used_ellipsis = false;
 	std::ostringstream ellipsis_tooltip;
-	SDL_Rect ellipsis_area = rect;
+	SDL_Rect ellipsis_area = loc;
 
 	for (config::const_child_itors elements = report.child_range("element");
 		 elements.begin() != elements.end(); elements.pop_front())
 	{
-		SDL_Rect area {x, y, rect.w + rect.x - x, rect.h + rect.y - y};
+		SDL_Rect area {x, y, loc.w + loc.x - x, loc.h + loc.y - y};
 		if (area.h <= 0) break;
 
 		std::string t = elements.front()["text"];
@@ -2948,6 +2960,7 @@ void display::refresh_report(const std::string& report_name, const config * new_
 		{
 			if (used_ellipsis) goto skip_element;
 
+			// TODO: draw_manager - don't render if faking
 			// Draw a text element.
 			font::pango_text& text = font::get_text_renderer();
 			bool eol = false;
@@ -2958,7 +2971,7 @@ void display::refresh_report(const std::string& report_name, const config * new_
 			text.set_link_aware(false)
 				.set_text(t, true);
 			text.set_family_class(font::FONT_SANS_SERIF)
-			    .set_font_size(item->font_size())
+				.set_font_size(item->font_size())
 				.set_font_style(font::pango_text::STYLE_NORMAL)
 				.set_alignment(PANGO_ALIGN_LEFT)
 				.set_foreground_color(item->font_rgb_set() ? item->font_rgb() : font::NORMAL_COLOR)
@@ -2972,7 +2985,7 @@ void display::refresh_report(const std::string& report_name, const config * new_
 			// check if next element is text with almost no space to show it
 			const int minimal_text = 12; // width in pixels
 			config::const_child_iterator ee = elements.begin();
-			if (!eol && rect.w - (x - rect.x + s.w()) < minimal_text &&
+			if (!eol && loc.w - (x - loc.x + s.w()) < minimal_text &&
 				++ee != elements.end() && !(*ee)["text"].empty())
 			{
 				// make this element longer to trigger rendering of ellipsis
@@ -2991,12 +3004,14 @@ void display::refresh_report(const std::string& report_name, const config * new_
 
 			area.w = s.w();
 			area.h = s.h();
-			draw::blit(s, area);
+			if (!tooltip_test) {
+				draw::blit(s, area);
+			}
 			if (area.h > tallest) {
 				tallest = area.h;
 			}
 			if (eol) {
-				x = rect.x;
+				x = loc.x;
 				y += tallest;
 				tallest = 0;
 			} else {
@@ -3023,7 +3038,9 @@ void display::refresh_report(const std::string& report_name, const config * new_
 
 			if (img.w() < area.w) area.w = img.w();
 			if (img.h() < area.h) area.h = img.h();
-			draw::blit(img, area);
+			if (!tooltip_test) {
+				draw::blit(img, area);
+			}
 
 			++image_count;
 			if (area.h > tallest) {
@@ -3045,7 +3062,7 @@ void display::refresh_report(const std::string& report_name, const config * new_
 		skip_element:
 		t = elements.front()["tooltip"].t_str().c_str();
 		if (!t.empty()) {
-			if (!used_ellipsis) {
+			if (tooltip_test && !used_ellipsis) {
 				tooltips::add_tooltip(area, t, elements.front()["help"].t_str().c_str());
 			} else {
 				// Collect all tooltips for the ellipsis.
@@ -3059,8 +3076,21 @@ void display::refresh_report(const std::string& report_name, const config * new_
 		}
 	}
 
-	if (used_ellipsis) {
+	if (tooltip_test && used_ellipsis) {
 		tooltips::add_tooltip(ellipsis_area, ellipsis_tooltip.str());
+	}
+}
+
+// TODO: draw_manager - pass in bounds in stead of using clip region
+// TODO: draw_manager - return whether anything was drawn
+void display::draw_reports()
+{
+	for(const auto& it : reports_) {
+		const std::string& name = it.first;
+		const rect& loc = reportLocations_[name];
+		if(loc.overlaps(draw::get_clip())) {
+			draw_report(name);
+		}
 	}
 }
 

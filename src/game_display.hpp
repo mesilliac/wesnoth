@@ -220,7 +220,7 @@ private:
 	game_display(const game_display&);
 	void operator=(const game_display&);
 
-	virtual void draw_sidebar() override;
+	virtual void refresh_reports() override;
 
 	overlay_map overlay_map_;
 

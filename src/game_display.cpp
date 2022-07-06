@@ -364,7 +364,7 @@ bool game_display::has_time_area() const
 	return resources::tod_manager->has_time_area();
 }
 
-void game_display::draw_sidebar()
+void game_display::refresh_reports()
 {
 	if ( !team_valid() )
 		return;

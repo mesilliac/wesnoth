@@ -409,7 +409,20 @@ public:
 
 	void invalidate_theme() { panelsDrawn_ = false; }
 
+	/** Update the given report. Actual drawing is done in draw_report(). */
 	void refresh_report(const std::string& report_name, const config * new_cfg=nullptr);
+
+	/**
+	 * Draw the specified report.
+	 *
+	 * If test_run is true, it will simulate the draw without actually
+	 * drawing anything. This will add any overflowing information to the
+	 * report tooltip, and also registers the tooltip.
+	 */
+	void draw_report(const std::string& report_name, bool test_run = false);
+
+	/** Draw all reports. This will respect the clipping region, if set. */
+	void draw_reports();
 
 	void draw_minimap_units();
 
@@ -711,10 +724,12 @@ protected:
 	virtual void draw_hex(const map_location& loc);
 
 	/**
-	 * Called near the end of a draw operation, derived classes can use this
-	 * to render a specific sidebar. Very similar to post_commit.
+	 * Choose which reports, if any, to refresh.
+	 *
+	 * This function should make individual refresh_report() calls for
+	 * whichever reports need to be updated.
 	 */
-	virtual void draw_sidebar() {}
+	virtual void refresh_reports() {}
 
 	void draw_minimap();
 
@@ -775,7 +790,7 @@ protected:
 	uint32_t last_frame_finished_ = 0u;
 
 	// Not set by the initializer:
-	std::map<std::string, SDL_Rect> reportRects_;
+	std::map<std::string, rect> reportLocations_;
 	std::map<std::string, texture> reportSurfaces_;
 	std::map<std::string, config> reports_;
 	std::vector<std::shared_ptr<gui::button>> menu_buttons_, action_buttons_;
